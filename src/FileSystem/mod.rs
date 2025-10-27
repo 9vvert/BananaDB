@@ -6,12 +6,15 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::hash::Hash;
-use std::io::{ErrorKind, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
 use uuid::Uuid;
 
+const page_size: u16 = 4096;
+
 pub struct FileManager<'a> {
     map_file_path: &'a str,
+    base_path: &'a str,
     funcID: HashMap<String, fs::FileType>,
 }
 
@@ -29,9 +32,53 @@ impl<'a> FileManager<'a> {
 
         FileManager {
             map_file_path: "./global/TableMap.json",
+            base_path: "./base",
             funcID: HashMap::new(),
         }
     }
+
+    pub fn clear(&self) {
+        let base_path = Path::new(self.base_path);
+        let global_path = Path::new(self.map_file_path);
+
+        if base_path.exists() {
+            fs::remove_dir_all(base_path).unwrap();
+        }
+
+        if global_path.exists() {
+            fs::remove_dir_all(global_path).unwrap();
+        }
+    }
+
+    fn read_table_map(&self) -> Result<HashMap<String, String>, Box<dyn Error>> {
+        return match fs::read_to_string(self.map_file_path) {
+            Ok(mapString) => {
+                // open normally, read content
+                Ok(serde_json::from_str(&mapString)
+                    .expect("Failed to read global/TableMap.json. Probably format error!"))
+            }
+            Err(e) => {
+                // other error, like permission denied, report an error and return.
+                Err(e.into())
+            }
+        };
+    }
+
+    fn write_table_map(&mut self, table_map_data: HashMap<String, String>) {
+        let mapjson_path = Path::new(self.map_file_path);
+        let mut mapjson_file = fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(mapjson_path)
+            .expect("Cannot open TableMap.json for writing!");
+        let json_str = serde_json::to_string_pretty(&table_map_data)
+            .expect("Cannot convert current map to string.");
+        mapjson_file
+            .write_all(json_str.as_bytes())
+            .expect("Failed in writing to TableMap.json!");
+        println!("{}", json_str);
+    }
+
     // create a new table (allocate UUID, touch file, update mapfile)
     // if success, return table uuid; otherwise return Error
     pub fn new_table(&mut self, tableName: &str) -> Result<String, Box<dyn Error>> {
@@ -40,19 +87,7 @@ impl<'a> FileManager<'a> {
         // 2. add config path to .toml file
 
         // 1. read meta file  [FileIOError, TableExist]
-        // if the TableMap.json doesn't exist, create new one.
-        let mut tableMapData: HashMap<String, String> = match fs::read_to_string(self.map_file_path)
-        {
-            Ok(mapString) => {
-                // open normally, read content
-                serde_json::from_str(&mapString)
-                    .expect("Failed to read global/TableMap.json. Probably format error!")
-            }
-            Err(e) => {
-                // other error, like permission denied, report an error and return.
-                return Err(e.into());
-            }
-        };
+        let mut tableMapData: HashMap<String, String> = self.read_table_map()?;
         // 2. allocate an UUID
         // if such name exists, then throw an error
         let new_uuid = Uuid::new_v4().to_string();
@@ -60,6 +95,8 @@ impl<'a> FileManager<'a> {
             return Err(format!("Table {} exists", tableName).into());
         } else {
             tableMapData.insert(tableName.to_string(), new_uuid.to_string());
+            let json_str = serde_json::to_string_pretty(&tableMapData).expect("f");
+            println!("{}", json_str);
         }
         // 3. mkdir [DirectoryExist]
         let table_dir_path = format!("./base/{}", new_uuid);
@@ -69,44 +106,110 @@ impl<'a> FileManager<'a> {
         fs::create_dir_all(table_dir_path)?;
 
         // 4. write to mapfile [FILEIOError]
-        let mapjson_path = Path::new(self.map_file_path);
-        let mut mapjson_file = fs::OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(mapjson_path)
-            .expect("Cannot open TableMap.json for writing!");
-        let json_str = serde_json::to_string_pretty(&tableMapData)
-            .expect("Cannot convert current map to string.");
-        mapjson_file
-            .write_all(json_str.as_bytes())
-            .expect("Failed in writing to TableMap.json!");
+        self.write_table_map(tableMapData);
 
         // return uuid, if all success
         return Ok(new_uuid);
     }
 
+    pub fn delete_table(&mut self, tableName: &str) -> Result<String, Box<dyn Error>> {
+        let mut tableMapData: HashMap<String, String> = self.read_table_map()?;
+
+        if tableMapData.contains_key(tableName) {
+            tableMapData.remove(tableName);
+            self.write_table_map(tableMapData);
+            return Ok("Delete successfully.".into());
+        } else {
+            return Err(format!("table {} doesn't exist.", tableName).into());
+        }
+    }
+
     pub fn open_table(&self, tableName: &str) -> Result<String, Box<dyn Error>> {
-        let tableMapData: HashMap<String, String> = match fs::read_to_string(self.map_file_path) {
-            Ok(mapString) => {
-                // open normally, read content
-                serde_json::from_str(&mapString)
-                    .expect("Failed to read global/TableMap.json. Probably format error!")
-            }
-            Err(ref e) if e.kind() == ErrorKind::NotFound => {
-                // file not found, then create a new one.
-                fs::File::create_new(self.map_file_path).expect("Failed to create new file");
-                let emptyJson: HashMap<String, String> = HashMap::new();
-                emptyJson
-            }
-            Err(e) => {
-                // other error, like permission denied, report an error and return.
-                return Err(e.into());
-            }
-        };
+        let tableMapData: HashMap<String, String> = self.read_table_map()?;
 
         return match tableMapData.get(tableName) {
             Some(table_uuid) => Ok(table_uuid.to_string()),
             None => return Err(format!("table {} doesn't exist.", tableName).into()),
+        };
+    }
+
+    // NOTE:
+    // current implementation: create new page when needed but dont delete them
+    // TODO:
+    // add a json file for each table, recording their page, and allocate a new page without page
+    // argument
+    pub fn new_page(&mut self, table_uuid: &str, page_index: u32) -> Result<(), Box<dyn Error>> {
+        let page_path =
+            self.base_path.to_string() + "/" + table_uuid + "/" + &page_index.to_string();
+        let empty_buffer: [u8; page_size as usize] = [0; page_size as usize];
+
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&page_path)
+            .expect(&format!("Error in opening {}", page_path));
+
+        let n = file.write(&empty_buffer);
+
+        return match n {
+            Ok(write_size) => {
+                if write_size == page_size as usize {
+                    Ok(())
+                } else {
+                    Err("Cannot memset new page with 0. Maybe it is due to IO Error.".into())
+                }
+            }
+            Err(e) => Err(e.into()),
+        };
+    }
+
+    pub fn read_page(
+        &mut self,
+        table_uuid: &str,
+        page_index: u32,
+        buffer: &mut [u8; page_size as usize],
+    ) -> Result<(), Box<dyn Error>> {
+        let page_path =
+            self.base_path.to_string() + "/" + table_uuid + "/" + &page_index.to_string();
+
+        let mut file = fs::OpenOptions::new().read(true).open(&page_path)?;
+
+        let n = file.read(buffer);
+
+        return match n {
+            Ok(read_size) => {
+                if read_size == page_size as usize {
+                    Ok(())
+                } else {
+                    Err("Cannot fill a page. Maybe the data is coruppted!".into())
+                }
+            }
+            Err(e) => Err(e.into()),
+        };
+    }
+
+    pub fn write_page(
+        &mut self,
+        table_uuid: &str,
+        page_index: u32,
+        buffer: &[u8; page_size as usize],
+    ) -> Result<(), Box<dyn Error>> {
+        let page_path =
+            self.base_path.to_string() + "/" + table_uuid + "/" + &page_index.to_string();
+
+        let mut file = fs::OpenOptions::new().write(true).open(&page_path)?;
+        let n = file.write(buffer);
+
+        return match n {
+            Ok(write_size) => {
+                if write_size == page_size as usize {
+                    Ok(())
+                } else {
+                    Err("Cannot write buffer to page. Maybe it is due to IO Error.".into())
+                }
+            }
+            Err(e) => Err(e.into()),
         };
     }
 }
