@@ -10,7 +10,7 @@ use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
 use uuid::Uuid;
 
-const page_size: u16 = 4096;
+const PAGE_SIZE: u16 = 4096;
 
 pub struct FileManager<'a> {
     map_file_path: &'a str,
@@ -141,7 +141,7 @@ impl<'a> FileManager<'a> {
     pub fn new_page(&mut self, table_uuid: &str, page_index: u32) -> Result<(), Box<dyn Error>> {
         let page_path =
             self.base_path.to_string() + "/" + table_uuid + "/" + &page_index.to_string();
-        let empty_buffer: [u8; page_size as usize] = [0; page_size as usize];
+        let empty_buffer: [u8; PAGE_SIZE as usize] = [0; PAGE_SIZE as usize];
 
         let mut file = fs::OpenOptions::new()
             .read(true)
@@ -154,7 +154,7 @@ impl<'a> FileManager<'a> {
 
         return match n {
             Ok(write_size) => {
-                if write_size == page_size as usize {
+                if write_size == PAGE_SIZE as usize {
                     Ok(())
                 } else {
                     Err("Cannot memset new page with 0. Maybe it is due to IO Error.".into())
@@ -168,7 +168,7 @@ impl<'a> FileManager<'a> {
         &mut self,
         table_uuid: &str,
         page_index: u32,
-        buffer: &mut [u8; page_size as usize],
+        buffer: &mut [u8; PAGE_SIZE as usize],
     ) -> Result<(), Box<dyn Error>> {
         let page_path =
             self.base_path.to_string() + "/" + table_uuid + "/" + &page_index.to_string();
@@ -179,7 +179,7 @@ impl<'a> FileManager<'a> {
 
         return match n {
             Ok(read_size) => {
-                if read_size == page_size as usize {
+                if read_size == PAGE_SIZE as usize {
                     Ok(())
                 } else {
                     Err("Cannot fill a page. Maybe the data is coruppted!".into())
@@ -193,7 +193,7 @@ impl<'a> FileManager<'a> {
         &mut self,
         table_uuid: &str,
         page_index: u32,
-        buffer: &[u8; page_size as usize],
+        buffer: &[u8; PAGE_SIZE as usize],
     ) -> Result<(), Box<dyn Error>> {
         let page_path =
             self.base_path.to_string() + "/" + table_uuid + "/" + &page_index.to_string();
@@ -203,7 +203,7 @@ impl<'a> FileManager<'a> {
 
         return match n {
             Ok(write_size) => {
-                if write_size == page_size as usize {
+                if write_size == PAGE_SIZE as usize {
                     Ok(())
                 } else {
                     Err("Cannot write buffer to page. Maybe it is due to IO Error.".into())

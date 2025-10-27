@@ -1,0 +1,6 @@
+[File]
+PageSize 4096
+
+[Cache]
+PageNum 60000
+

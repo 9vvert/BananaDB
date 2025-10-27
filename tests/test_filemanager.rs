@@ -1,8 +1,9 @@
-use BananaDB::FileSystem;
+use BananaDB::io_manager::cache_system;
+use BananaDB::io_manager::file_system;
 
 #[test]
 fn test_create_table() {
-    let mut fm = FileSystem::FileManager::new();
+    let mut fm = file_system::FileManager::new();
     let result1 = fm.open_table("abc");
     assert!(result1.is_err());
 
