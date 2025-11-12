@@ -1,13 +1,17 @@
+// cache system
+// 接受table_id, page_id, 封装所有和cache page有关的细节
+mod lru_list;
+use bitvec::{order::Lsb0, vec::BitVec};
 use std::collections::HashMap;
 
-use crate::config::CONFIG;
-use bitvec::{order::Lsb0, vec::BitVec};
+use crate::io_manager::cache_system::lru_list::LruList;
 
-struct CacheBuf<const PAGE_NUM: usize> {
+pub struct CacheBuf<const PAGE_NUM: usize> {
     page_map: HashMap<String, Vec<i64>>,
     valid: BitVec<usize, Lsb0>,
     dirty: BitVec<usize, Lsb0>,
     data: Vec<[u8; 4096]>,
+    lru_list: LruList<PAGE_NUM>,
 }
 
 impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
@@ -17,9 +21,12 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
             data: vec![[0u8; 4096]; PAGE_NUM],
             valid: BitVec::<usize, Lsb0>::repeat(false, PAGE_NUM),
             dirty: BitVec::<usize, Lsb0>::repeat(false, PAGE_NUM),
+            lru_list: LruList::<PAGE_NUM>::new(),
         }
     }
-    fn get_cache_index(&mut self, table_id: &str, page_id: usize) -> Option<usize> {
+    // [input] table_id, page_id
+    // [output] Option(cache_index)
+    pub fn get_cache_index(&mut self, table_id: &str, page_id: usize) -> Option<usize> {
         match self.page_map.get_mut(table_id) {
             Some(table_index_vec) => {
                 if table_index_vec.len() <= page_id {
@@ -36,7 +43,7 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
             None => None,
         }
     }
-    fn set_cache_index(&mut self, table_id: &str, page_id: usize, cache_id: usize) {
+    pub fn set_cache_index(&mut self, table_id: &str, page_id: usize, cache_id: usize) {
         if !self.page_map.contains_key(table_id) {
             //
             self.page_map
@@ -55,43 +62,30 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
         }
     }
 
-    fn find_free(&self) -> Option<usize> {
+    pub fn find_free(&self) -> Option<usize> {
         self.valid.iter().position(|bit| !bit)
     }
-    fn set_free(&mut self, index: usize) {
+    pub fn set_free(&mut self, index: usize) {
         self.valid.set(index, false);
     }
-    fn set_busy(&mut self, index: usize) {
+    pub fn set_busy(&mut self, index: usize) {
         self.valid.set(index, true);
     }
-    fn is_dirty(&self, index: usize) -> bool {
+    pub fn is_dirty(&self, index: usize) -> bool {
         return self.dirty[index];
     }
-    fn set_dirty(&mut self, index: usize) {
+    pub fn set_dirty(&mut self, index: usize) {
         self.dirty.set(index, true);
     }
-    fn set_clean(&mut self, index: usize) {
+    pub fn set_clean(&mut self, index: usize) {
         self.dirty.set(index, false);
     }
-
-    fn get_page_cache(&mut self, table_id: &str, page_id: i64) -> &mut [u8; 4096] {
-        // if in cache, then return the ref of it
-
-        return match self.get_cache_index(table_id, page_id as usize) {
-            Some(cache_index) => &mut self.data[cache_index],
-            None => {
-                match self.find_free() {
-                    // free cache page
-                    Some(index) => {
-                        self.set_busy(index);
-                        self.set_clean(index);
-                        self.set_cache_index(table_id, page_id as usize, index);
-                        // load file into cache page
-                    }
-                    // replace an existing page
-                    None => {}
-                }
-            }
-        };
+    pub fn get_cache_by_id(&mut self, cache_id: i64) -> Option<&mut [u8; 4096]> {
+        if cache_id >= 0 && (cache_id as usize) < PAGE_NUM {
+            // valid cache
+            Some(&mut self.data[cache_id as usize])
+        } else {
+            None
+        }
     }
 }
