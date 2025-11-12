@@ -15,13 +15,14 @@ const PAGE_SIZE: u16 = 4096;
 pub struct FileManager<'a> {
     map_file_path: &'a str,
     base_path: &'a str,
-    funcID: HashMap<String, fs::FileType>,
+    table_map_data: HashMap<String, String>,
 }
 
 #[allow(non_snake_case)]
 impl<'a> FileManager<'a> {
     pub fn new() -> Self {
         // mkdir, if not exist
+        // TODO:在已经有文件夹的情况下是否会覆盖？
         std::fs::create_dir_all("./global").expect("Error: cannot create directory:  ./global");
         // touch file and write empty json
         let mapjson_path = Path::new("./global/TableMap.json");
@@ -30,10 +31,13 @@ impl<'a> FileManager<'a> {
             mapjson_file.write_all("{}".as_bytes()).unwrap();
         }
 
+        let global_map_string = match fs::read_to_string("./global/TableMap.json")?;
+        
+
         FileManager {
             map_file_path: "./global/TableMap.json",
             base_path: "./base",
-            funcID: HashMap::new(),
+            table_map_data: serde_json::from_str(&global_map_string).unwrap(),
         }
     }
 
@@ -50,28 +54,14 @@ impl<'a> FileManager<'a> {
         }
     }
 
-    fn read_table_map(&self) -> Result<HashMap<String, String>, Box<dyn Error>> {
-        return match fs::read_to_string(self.map_file_path) {
-            Ok(mapString) => {
-                // open normally, read content
-                Ok(serde_json::from_str(&mapString)
-                    .expect("Failed to read global/TableMap.json. Probably format error!"))
-            }
-            Err(e) => {
-                // other error, like permission denied, report an error and return.
-                Err(e.into())
-            }
-        };
-    }
-
-    fn write_table_map(&mut self, table_map_data: HashMap<String, String>) {
+    fn write_table_map(&mut self, table_map_data: &HashMap<String, String>) {
         let mapjson_path = Path::new(self.map_file_path);
         let mut mapjson_file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)
             .open(mapjson_path)
             .expect("Cannot open TableMap.json for writing!");
-        let json_str = serde_json::to_string_pretty(&table_map_data)
+        let json_str = serde_json::to_string_pretty(table_map_data)
             .expect("Cannot convert current map to string.");
         mapjson_file
             .write_all(json_str.as_bytes())
@@ -87,15 +77,14 @@ impl<'a> FileManager<'a> {
         // 2. add config path to .toml file
 
         // 1. read meta file  [FileIOError, TableExist]
-        let mut tableMapData: HashMap<String, String> = self.read_table_map()?;
         // 2. allocate an UUID
         // if such name exists, then throw an error
         let new_uuid = Uuid::new_v4().to_string();
-        if tableMapData.contains_key(tableName) {
+        if self.table_map_data.contains_key(tableName) {
             return Err(format!("Table {} exists", tableName).into());
         } else {
-            tableMapData.insert(tableName.to_string(), new_uuid.to_string());
-            let json_str = serde_json::to_string_pretty(&tableMapData).expect("f");
+            self.table_map_data.insert(tableName.to_string(), new_uuid.to_string());
+            let json_str = serde_json::to_string_pretty(&self.table_map_data).expect("f");
             println!("{}", json_str);
         }
         // 3. mkdir [DirectoryExist]
@@ -106,18 +95,17 @@ impl<'a> FileManager<'a> {
         fs::create_dir_all(table_dir_path)?;
 
         // 4. write to mapfile [FILEIOError]
-        self.write_table_map(tableMapData);
+        self.write_table_map(self.table_map_data);
 
         // return uuid, if all success
         return Ok(new_uuid);
     }
 
     pub fn delete_table(&mut self, tableName: &str) -> Result<String, Box<dyn Error>> {
-        let mut tableMapData: HashMap<String, String> = self.read_table_map()?;
 
-        if tableMapData.contains_key(tableName) {
-            tableMapData.remove(tableName);
-            self.write_table_map(tableMapData);
+        if self.table_map_data.contains_key(tableName) {
+            self.table_map_data.remove(tableName);
+            self.write_table_map(self.table_map_data);
             return Ok("Delete successfully.".into());
         } else {
             return Err(format!("table {} doesn't exist.", tableName).into());
