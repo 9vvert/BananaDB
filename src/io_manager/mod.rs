@@ -4,12 +4,12 @@ pub mod cache_system;
 pub mod file_system;
 
 #[allow(non_camel_case_types)]
-struct IO_Manager<'a, const PAGE_NUM: usize> {
+struct IO_Manager<const PAGE_NUM: usize> {
     cache_sys: cache_system::CacheBuf<PAGE_NUM>,
-    file_sys: file_system::FileManager<'a>,
+    file_sys: file_system::FileManager,
 }
 
-impl<'a, const PAGE_NUM: usize> IO_Manager<'a, PAGE_NUM> {
+impl<'a, const PAGE_NUM: usize> IO_Manager<PAGE_NUM> {
     pub fn new() -> Self {
         IO_Manager {
             cache_sys: cache_system::CacheBuf::<PAGE_NUM>::new(),
