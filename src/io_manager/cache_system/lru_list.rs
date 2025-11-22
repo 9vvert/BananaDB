@@ -6,7 +6,11 @@ use std::error::Error;
 //
 // cache_system map : table_id+page_id => lru_list vector index
 
-// 规定LruNode所在Vec中的索引和cache page索引相同
+// the index in lru_list is the same as those in cache vector
+// when the cache is not full, simply add a new item to lru-list and swithc the head pointer.
+//
+// Usage :
+//
 struct LruNode {
     prev: Option<usize>,
     next: Option<usize>,
@@ -39,13 +43,13 @@ impl<const PAGE_NUM: usize> LruList<PAGE_NUM> {
         return self.list_len < PAGE_NUM;
     }
     // 返回lru_id (供上层添加到map记录)
-    pub fn new_page(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn new_page(&mut self) -> Result<usize, Box<dyn Error>> {
         // new list
         if self.list_len == 0 {
             self.head_ptr = Some(0);
             self.list.push(LruNode::new(Some(0), Some(0)));
             self.list_len += 1;
-            Ok(())
+            Ok(0)
         }
         // allocate new
         else if self.list_len < PAGE_NUM {
@@ -61,7 +65,7 @@ impl<const PAGE_NUM: usize> LruList<PAGE_NUM> {
 
             self.list_len += 1;
 
-            Ok(())
+            Ok(self.list_len - 1)
         }
         // full (不能直接在这里完成所有的操作，因为需要通知上层完成IO)
         else {
@@ -96,6 +100,7 @@ impl<const PAGE_NUM: usize> LruList<PAGE_NUM> {
         }
     }
     // return the cache_id of a page
+    // to nitify cache_system to clear the cache of page
     pub fn get_drop_page(&mut self) -> Result<usize, Box<dyn Error>> {
         match self.head_ptr {
             Some(head_id) => {
