@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bitmaps = "3.2.1"
+bitmaps = {version = "3.2.1", features = ["std"]}
 bitvec = "1.0.1"
+bytemuck = "1.24.0"
 intrusive-collections = "0.9.7"
 once_cell = "1.21.3"
 serde = { version = "1.0.228", features = ["derive"]}
