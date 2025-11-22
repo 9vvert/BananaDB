@@ -123,10 +123,10 @@ impl FileManager {
     pub fn read_page(
         &mut self,
         file: &mut fs::File,
-        page_index: u32,
+        page_index: usize,
         buffer: &mut [u8; PAGE_SIZE as usize],
     ) {
-        let offset: u64 = (page_index * PAGE_SIZE as u32).into();
+        let offset: u64 = (page_index * PAGE_SIZE as usize) as u64;
         file.seek(std::io::SeekFrom::Start(offset));
         file.read(buffer);
     }
@@ -134,10 +134,10 @@ impl FileManager {
     pub fn write_page(
         &mut self,
         file: &mut fs::File,
-        page_index: u32,
+        page_index: usize,
         buffer: &[u8; PAGE_SIZE as usize],
     ) {
-        let offset: u64 = (page_index * PAGE_SIZE as u32).into();
+        let offset: u64 = (page_index * PAGE_SIZE as usize) as u64;
         file.seek(std::io::SeekFrom::Start(offset));
         file.write(buffer);
     }

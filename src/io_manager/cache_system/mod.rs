@@ -1,7 +1,7 @@
 // cache system
 // 接受table_id, page_id, 封装所有和cache page有关的细节
 mod lru_list;
-mod resource;
+pub mod resource;
 
 use bitvec::{order::Lsb0, vec::BitVec};
 use resource::ResId;
@@ -59,7 +59,7 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
         if self.query_cache_index(res_id).is_none() {
             panic!("Cache leak: trying load a page data twice!");
         }
-        let mut cache_id: usize;
+        let cache_id: usize;
         // query if the cache is full
         if self.lru_list.have_free_page() {
             cache_id = self.lru_list.new_page().unwrap();
@@ -71,7 +71,9 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
         }
         // load data
         self.data[cache_id] = buffer;
-        self.cache_map.insert(res_id, cache_id);
+
+        let res_id_key = res_id.clone(); // NOTE: first derive Clone for ResId, then clone it.
+        self.cache_map.insert(res_id_key, cache_id);
     }
 
     // old interface
@@ -92,13 +94,5 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
     }
     pub fn set_clean(&mut self, index: usize) {
         self.dirty.set(index, false);
-    }
-    pub fn get_cache_by_id(&mut self, cache_id: i64) -> Option<&mut [u8; 4096]> {
-        if cache_id >= 0 && (cache_id as usize) < PAGE_NUM {
-            // valid cache
-            Some(&mut self.data[cache_id as usize])
-        } else {
-            None
-        }
     }
 }
