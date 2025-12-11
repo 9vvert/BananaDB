@@ -4,7 +4,7 @@ pub enum PageType {
     INDEX = 1,
 }
 
-#[derive(Hash, PartialEq, Eq, Clone)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub struct ResId {
     resource_id: String,
 }

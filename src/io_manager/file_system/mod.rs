@@ -3,12 +3,12 @@
 
 use serde_json;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs;
-use std::hash::Hash;
-use std::io::{ErrorKind, Read, Seek, Write};
+use std::fs::OpenOptions;
+use std::io::{Read, Seek, Write};
 use std::path::Path;
-use uuid::Uuid;
+
+use crate::error_type::IOManagerError;
 
 const PAGE_SIZE: u16 = 4096;
 
@@ -53,7 +53,7 @@ impl FileManager {
 
         FileManager {
             global_path: "./global/TableMap.json".to_string(),
-            base_path: "./base".to_string(),
+            base_path: "./base/".to_string(),
             table_map_data: serde_json::from_str(&global_map_string).unwrap(),
         }
     }
@@ -78,13 +78,12 @@ impl FileManager {
 
     // create a new table (allocate UUID, touch file, update mapfile)
     // if success, return table uuid; otherwise return Error
-    pub fn new_table(&mut self, table_name: &str) -> Result<String, Box<dyn Error>> {
-        // TODO:
-        // 1. if global directory doesn't exist, then try to create one,.
-        // 2. add config path to .toml file
-
+    pub fn new_table(&mut self, table_name: &str) -> Result<String, IOManagerError> {
         if self.table_map_data.contains_key(table_name) {
-            return Err(format!("Table {} exists", table_name).into());
+            Err(IOManagerError::AlreadyExistError(format!(
+                "Table {} already exists.",
+                table_name
+            )))
         } else {
             // update table map and write to map file
             self.table_map_data
@@ -93,42 +92,50 @@ impl FileManager {
             // touch file
 
             let table_path = self.base_path.to_owned() + table_name;
+            println!("----------------------");
+            println!("{}", table_path);
             let table_data_path = Path::new(&table_path);
-            fs::File::create_new(table_data_path);
-            return Ok("Create success".to_string());
+            fs::File::create_new(table_data_path)?;
+            return Ok(format!("Create table {}", table_name));
         }
     }
 
-    pub fn delete_table(&mut self, table_name: &str) -> Result<String, Box<dyn Error>> {
+    pub fn delete_table(&mut self, table_name: &str) -> Result<String, IOManagerError> {
         if self.table_map_data.contains_key(table_name) {
             self.table_map_data.remove(table_name);
             self.update_table_map(&self.table_map_data);
             // TODO:
             // 删除具体的表数据文件
-            return Ok("Delete successfully.".into());
+            Ok("Delete successfully.".into())
         } else {
-            return Err(format!("table {} doesn't exist.", table_name).into());
+            Err(IOManagerError::NotFoundError(format!(
+                "Trying to delete a table that doesn't exist : \"{}\" !",
+                table_name
+            )))
         }
     }
-    pub fn open_file(&self, path_str: &str) -> Result<fs::File, Box<dyn Error>> {
+    pub fn open_file(&self, path_str: &str) -> Result<fs::File, IOManagerError> {
         let file_path = Path::new(path_str);
-
-        if file_path.exists() {
-            return Ok(fs::File::open(file_path).unwrap());
-        } else {
-            return Err(format!("Cannot open file {}", path_str).into());
+        match OpenOptions::new().read(true).write(true).open(file_path) {
+            Ok(f) => Ok(f),
+            Err(e) => Err(IOManagerError::IOError(e)), // INFO:IOManagerError是自定义错误类型，还是需要用Err包装
         }
     }
 
+    // 文件读写可能出现 io::Error
     pub fn read_page(
         &mut self,
         file: &mut fs::File,
         page_index: usize,
         buffer: &mut [u8; PAGE_SIZE as usize],
-    ) {
+    ) -> Result<(), IOManagerError> {
         let offset: u64 = (page_index * PAGE_SIZE as usize) as u64;
-        file.seek(std::io::SeekFrom::Start(offset));
-        file.read(buffer);
+
+        file.seek(std::io::SeekFrom::Start(offset))?; // INFO: '?' 在发生错误的时候向上传递，可以自动类型转换
+        // 而上面的open_file不能直接 '?' 的原因是接受
+        // fs::File类型
+        file.read(buffer)?;
+        Ok(())
     }
 
     pub fn write_page(
@@ -136,9 +143,10 @@ impl FileManager {
         file: &mut fs::File,
         page_index: usize,
         buffer: &[u8; PAGE_SIZE as usize],
-    ) {
+    ) -> Result<(), IOManagerError> {
         let offset: u64 = (page_index * PAGE_SIZE as usize) as u64;
-        file.seek(std::io::SeekFrom::Start(offset));
-        file.write(buffer);
+        file.seek(std::io::SeekFrom::Start(offset))?;
+        file.write(buffer)?;
+        Ok(())
     }
 }

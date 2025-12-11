@@ -112,4 +112,29 @@ impl<const PAGE_NUM: usize> LruList<PAGE_NUM> {
         }
     }
     //
+    // TEST:
+    //
+    pub fn dump_lru_order(&self) {
+        let mut result = Vec::new();
+
+        if let Some(head_id) = self.head_ptr {
+            let mut current_id = head_id;
+
+            // Traverse from head to tail
+            loop {
+                result.push(current_id);
+                current_id = self.list[current_id].next.unwrap();
+
+                // Stop when we've completed the circle (back to head)
+                if current_id == head_id {
+                    break;
+                }
+            }
+        }
+        if result.is_empty() {
+            println!("LRU List: empty");
+        } else {
+            println!("LRU List (head->tail): {:?}", result);
+        }
+    }
 }

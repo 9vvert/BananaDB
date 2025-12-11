@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use crate::io_manager::cache_system::lru_list::LruList;
 
 pub struct CacheBuf<const PAGE_NUM: usize> {
-    cache_map: HashMap<ResId, usize>, // ResId -> cache page index
+    cache_map: HashMap<ResId, usize>,   // ResId -> cache page index
+    reverse_map: HashMap<usize, ResId>, // cache id -> ResId
     valid: BitVec<usize, Lsb0>,
     dirty: BitVec<usize, Lsb0>,
     data: Vec<[u8; 4096]>,
@@ -21,6 +22,7 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
     pub fn new() -> Self {
         CacheBuf {
             cache_map: HashMap::new(),
+            reverse_map: HashMap::new(),
             data: vec![[0u8; 4096]; PAGE_NUM],
             valid: BitVec::<usize, Lsb0>::repeat(false, PAGE_NUM),
             dirty: BitVec::<usize, Lsb0>::repeat(false, PAGE_NUM),
@@ -47,6 +49,9 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
                 self.data.len()
             );
         }
+        // TODO:
+        // set the used cahce page to list head
+        self.lru_list.lift_page(cache_id).unwrap();
         &mut self.data[cache_id]
     }
 
@@ -56,7 +61,7 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
     // the buffer here is NOT ref, this is just a test
     // trying to move directly, aiming to reduce the cost of copy
     pub fn add_cache_resource(&mut self, res_id: &ResId, buffer: [u8; 4096]) {
-        if self.query_cache_index(res_id).is_none() {
+        if self.query_cache_index(res_id).is_some() {
             panic!("Cache leak: trying load a page data twice!");
         }
         let cache_id: usize;
@@ -65,15 +70,42 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
             cache_id = self.lru_list.new_page().unwrap();
         } else {
             cache_id = self.lru_list.get_drop_page().unwrap();
-            // TODO:
-            // check if the lift_page is used correctly
+
+            let old_res_id = self
+                .reverse_map
+                .get(&cache_id)
+                .expect("Fatal! Mismatch cache_map and reverse_map!");
+            // delete old map item
+            self.cache_map.remove(old_res_id);
+            self.reverse_map.remove(&cache_id);
+
             self.lru_list.lift_page(cache_id);
         }
         // load data
         self.data[cache_id] = buffer;
 
-        let res_id_key = res_id.clone(); // NOTE: first derive Clone for ResId, then clone it.
-        self.cache_map.insert(res_id_key, cache_id);
+        // add new map item
+        // NOTE: first derive Clone for ResId, then clone it.
+        self.cache_map.insert(res_id.clone(), cache_id);
+        self.reverse_map.insert(cache_id, res_id.clone());
+    }
+    // TEST:
+    pub fn debug_cache(&self) {
+        let mut result = String::new();
+        result.push_str(&format!(
+            "CacheBuf HashMap (size: {}):\n",
+            self.cache_map.len()
+        ));
+
+        if self.cache_map.is_empty() {
+            result.push_str("  <empty>\n");
+        } else {
+            for (res_id, cache_index) in &self.cache_map {
+                result.push_str(&format!("  {:?} -> cache_index: {}\n", res_id, cache_index));
+            }
+        }
+        println!("{}", result);
+        self.lru_list.dump_lru_order();
     }
 
     // old interface
