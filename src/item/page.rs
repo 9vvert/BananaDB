@@ -1,4 +1,4 @@
-use std::ops::BitAndAssign;
+use std::{io, ops::BitAndAssign};
 
 use bitmaps::Bitmap;
 use bytemuck::cast_slice;
@@ -18,14 +18,19 @@ pub struct DataPage<'a, const PAGE_SIZE: usize> {
     is_dirty: bool,
     item_size: usize,
     item_num: usize, // table item capacity
-    data: &'a [u8; PAGE_SIZE],
+    data: &'a mut [u8; PAGE_SIZE],
 }
 
 impl<'a, const PAGE_SIZE: usize> DataPage<'a, PAGE_SIZE> {
-    pub fn new(item_size: usize, page_data: &'a [u8; PAGE_SIZE]) -> Self {
+    pub fn new(item_size: usize, page_data: &'a mut [u8; PAGE_SIZE]) -> Self {
         // from bytes to bitmap
         let bitmap_offset = PAGE_SIZE - TAIL_SIZE;
-        let bitmap_data_u8: &[u8] = &page_data[bitmap_offset..(bitmap_offset + BITMAP_SIZE)];
+        // INFO:
+        //
+        let bitmap_data_u8: &mut [u8] =
+            &mut page_data[bitmap_offset..(bitmap_offset + BITMAP_SIZE)];
+        // INFO:
+        // array to vec
         let bitmap_data_u128_vec: Vec<u128> = cast_slice(bitmap_data_u8).to_vec();
         let bitmap_data_u128_arr: [u128; 2] = bitmap_data_u128_vec.try_into().unwrap();
         // TODO:
@@ -80,9 +85,21 @@ impl<'a, const PAGE_SIZE: usize> DataPage<'a, PAGE_SIZE> {
     }
 
     pub fn read_item(&self, index: usize) -> Vec<u8> {
+        //protect
         self.check_index_violent(index);
 
         let item_start: usize = self.item_size * index;
         return self.data[item_start..(item_start + self.item_size)].to_vec();
+    }
+
+    // NOTE:
+    // ensure the size of vector equals "item_size"
+    pub fn write_item(&mut self, index: usize, item_data: Vec<u8>) {
+        //protect
+        assert!(item_data.len() == self.item_size);
+        self.check_index_violent(index);
+
+        let item_start: usize = self.item_size * index;
+        self.data[item_start..(item_start + self.item_size)].copy_from_slice(&item_data);
     }
 }

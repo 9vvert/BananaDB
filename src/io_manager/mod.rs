@@ -31,6 +31,8 @@ impl<'a, const PAGE_NUM: usize> IO_Manager<PAGE_NUM> {
     // get data
     // FIX:
     // add check in self.cache_sys.add_cache_resource, for it may replace an dirty page!
+    // TODO:
+    // write back when drop a dirty page
     pub fn get_page(
         &mut self,
         page_type: PageType,
@@ -59,13 +61,15 @@ impl<'a, const PAGE_NUM: usize> IO_Manager<PAGE_NUM> {
 
                 // read data to buffer
                 let mut data_buf: [u8; 4096] = [0; 4096];
-                self.file_sys.read_page(fd, page_id, &mut data_buf);
+                self.file_sys.read_page(fd, page_id, &mut data_buf).unwrap();
 
                 // fill the cache, move the ownership(avoid copy)
                 self.cache_sys.add_cache_resource(&res_id, data_buf);
 
                 // read from cache
                 let new_cache_id = self.cache_sys.query_cache_index(&res_id).unwrap();
+
+                // return the page mut-ref
                 self.cache_sys.get_cache_resource(new_cache_id)
             }
         }
