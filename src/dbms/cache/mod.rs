@@ -1,19 +1,24 @@
 // cache system
 // 接受table_id, page_id, 封装所有和cache page有关的细节
+mod file_system;
 mod lru_list;
-pub mod resource;
 
 use bitvec::{order::Lsb0, vec::BitVec};
-use resource::ResId;
 use std::{collections::HashMap, fs::File};
 
-use crate::io_manager::{
-    cache_system::{lru_list::LruList, resource::PageType},
-    file_system::{self, FileManager},
+use file_system::FileManager;
+use lru_list::LruList;
+
+use crate::dbms::{
+    PAGE_NUM,
+    resource::{PageType, ResId},
 };
 
 // ==================== Page ======================
-
+// NOTE:
+// 最初的做法中，没有Page这一层抽象，将dirty的控制交给cache system，导致封装不够优雅
+// 现在将带有dirty标记的Page返回,方便控制
+#[derive(Clone)]
 pub struct Page<const PAGE_SIZE: usize> {
     pub data: [u8; 4096],
     dirty: bool,
@@ -46,8 +51,8 @@ pub struct CacheBuf<const PAGE_NUM: usize, const PAGE_SIZE: usize> {
     // cache
     cache_map: HashMap<ResId, usize>,   // ResId -> cache page index
     reverse_map: HashMap<usize, ResId>, // cache id -> ResId
-    pages: [Page<PAGE_SIZE>; PAGE_NUM],
-    // pages: Vec<Page<PAGE_SIZE>>,
+    // pages: [Page<PAGE_SIZE>; PAGE_NUM],
+    pages: Vec<Page<PAGE_SIZE>>,
     lru_list: LruList<PAGE_NUM>,
 }
 
@@ -60,20 +65,21 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
             // cache
             cache_map: HashMap::new(),
             reverse_map: HashMap::new(),
-            pages: std::array::from_fn(|_| Page::<PAGE_SIZE>::new()),
+            pages: vec![Page::<PAGE_SIZE>::new(); PAGE_NUM],
             lru_list: LruList::<PAGE_NUM>::new(),
         }
     }
+
+    //============ Public IO ================
     pub fn get_page(
         &mut self,
-        page_type: PageType,
-        page_id: usize,
         file_name: &str,
-        base_path: Option<&str>,
-    ) -> &mut [u8; 4096] {
+        page_id: usize,
+        page_type: &PageType,
+    ) -> &mut Page<PAGE_SIZE> {
         let res_id = ResId::new(page_type, file_name, page_id);
 
-        let file_path = base_path.unwrap_or("./").to_string() + file_name;
+        let file_path = ResId::gen_file_path(file_name, page_type);
         // first: query if there is cache.
         // assume that the borrowd cache is dropped at once.
         match self.query_cache_index(&res_id) {
@@ -81,9 +87,9 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
             Some(cache_id) => self.get_cache_resource(cache_id),
             // cache miss
             None => {
-                // request for data by file_sys
+                // request for data by ftile_sys
                 if !self.opened_file.contains_key(&file_path) {
-                    let new_fd = self.file_sys.open_file(&file_path).unwrap();
+                    let new_fd = self.file_sys.open_file(&file_path, page_type).unwrap();
                     self.opened_file.insert(file_path.to_string(), new_fd);
                 }
 
@@ -106,12 +112,23 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
         }
     }
 
-    // TODO:
-    // change to private
-    //
+    // ================ Public Create ==================
+    // pass
+    pub fn create_file(&mut self, file_name: &str, page_type: &PageType) {
+        // TODO:
+        // detect error
+        self.file_sys.create_file(file_name, page_type).unwrap();
+    }
+    pub fn delete_file(&mut self, file_name: &str, page_type: &PageType) {
+        // TODO:
+        // detect error
+        self.file_sys.delete_file(file_name, page_type).unwrap();
+    }
+
+    // ================ Private function ===============
     // to identify if current cache buffer has such resource
-    // if has, then return cache id; otherwise return None
-    pub fn query_cache_index(&self, res_id: &ResId) -> Option<usize> {
+    // if yes, then return cache id; otherwise return None
+    fn query_cache_index(&self, res_id: &ResId) -> Option<usize> {
         if self.cache_map.contains_key(res_id) {
             Some(self.cache_map[res_id])
         } else {
@@ -120,14 +137,14 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
     }
 
     // get cache by id
-    pub fn get_cache_resource(&mut self, cache_id: usize) -> &mut [u8; 4096] {
+    fn get_cache_resource(&mut self, cache_id: usize) -> &mut Page<PAGE_SIZE> {
         if cache_id >= PAGE_NUM {
             panic!("Invalid cache id {}, current max is {}", cache_id, PAGE_NUM);
         }
         // TODO:
         // set the used cahce page to list head
         self.lru_list.lift_page(cache_id).unwrap();
-        &mut self.pages[cache_id].data
+        &mut self.pages[cache_id]
     }
 
     // input: buffer
@@ -135,7 +152,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
     // NOTE:
     // the buffer here is NOT ref, this is just a test
     // trying to move directly, aiming to reduce the cost of copy
-    pub fn add_cache_resource(&mut self, res_id: &ResId, buffer: [u8; 4096]) {
+    fn add_cache_resource(&mut self, res_id: &ResId, buffer: [u8; 4096]) {
         if self.query_cache_index(res_id).is_some() {
             panic!("Cache leak: trying load a page data twice!");
         }
@@ -146,13 +163,17 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
         } else {
             cache_id = self.lru_list.get_drop_page().unwrap();
 
+            // INFO:
+            // 如果交换write_back和old_res_id的位置，会出现错误
+
+            // write back, if dirty
+            self.write_back_page(cache_id);
+            // delete old map item
             let old_res_id = self
                 .reverse_map
                 .get(&cache_id)
                 .expect("Fatal! Mismatch cache_map and reverse_map!");
-            // delete old map item
-            // FIX:
-            // write back, if dirty
+            // get file by ResId
             self.cache_map.remove(old_res_id);
             self.reverse_map.remove(&cache_id);
 
@@ -167,6 +188,32 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
         self.cache_map.insert(res_id.clone(), cache_id);
         self.reverse_map.insert(cache_id, res_id.clone());
         //
+    }
+
+    // drop a certain page
+    fn write_back_page(&mut self, cache_id: usize) {
+        let res_id = self
+            .reverse_map
+            .get(&cache_id)
+            .expect("Fatal! Mismatch cache_map and reverse_map!");
+
+        let drop_page: &Page<PAGE_SIZE> = &self.pages[cache_id];
+        if drop_page.dirty {
+            let resid_parts = res_id.break_resid();
+            let wb_file_type = resid_parts.0;
+            let wb_file_name = resid_parts.1;
+            let wb_page_id = resid_parts.2;
+            let mut wb_fd = self
+                .file_sys
+                .open_file(&wb_file_name, &wb_file_type)
+                .unwrap();
+            self.file_sys
+                .write_page(&mut wb_fd, wb_page_id, &drop_page.data)
+                .unwrap();
+            // INFO:
+            // 如果一个变量是mut类型，想要使用可变引用，必须显示用&mut x，而不是仅仅 &x
+            // 但是如果变量本身是 &mut类型，则可以直接用 x
+        }
     }
     // TEST:
     pub fn debug_cache(&self) {
@@ -185,5 +232,28 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
         }
         println!("{}", result);
         self.lru_list.dump_lru_order();
+    }
+}
+
+// ============== write back ==========
+impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> Drop for CacheBuf<PAGE_NUM, PAGE_SIZE> {
+    fn drop(&mut self) {
+        // Vec<Page> doesn't implement "Copy", so cannot move directly
+        // use reference instead
+
+        // NOTE:
+        // 如果使用for dirty_page in self.pages.iter().enumerate(),
+        // 会导致所有权的引用问题（迭代的时候获得&mut self, 而下面self.write_back_page还需要）
+        // 一个优雅的解决方法是：将迭代和write_back的时序分离开,这样就不会出现交错所有权引用的冲突
+        let dirty_page_id: Vec<usize> = self
+            .pages
+            .iter()
+            .enumerate()
+            .filter_map(|(i, p)| if p.dirty { Some(i) } else { None })
+            .collect();
+
+        for cache_id in dirty_page_id {
+            self.write_back_page(cache_id);
+        }
     }
 }

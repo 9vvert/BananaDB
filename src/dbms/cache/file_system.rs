@@ -8,6 +8,8 @@ use std::fs::OpenOptions;
 use std::io::{Read, Seek, Write};
 use std::path::Path;
 
+use crate::dbms::resource::PageType;
+use crate::dbms::resource::ResId;
 use crate::error_type::IOManagerError;
 
 const PAGE_SIZE: u16 = 4096;
@@ -15,20 +17,23 @@ const PAGE_SIZE: u16 = 4096;
 pub struct FileManager {
     global_path: String,
     base_path: String,
-    table_map_data: HashMap<String, TableItem>, // record  the meta info of a table
+    map_data: HashMap<String, TableItem>, // record  the meta info of a table
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct TableItem {
-    name: String, // TODO:
-                  // 新的记录形式
+    // TODO: 新的记录形式
+    // 将区分文件的工作放在上层
+    name: String,
+    file_type: PageType,
 }
 
 #[allow(non_snake_case)]
 impl TableItem {
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: &str, file_type: &PageType) -> Self {
         TableItem {
             name: name.to_string(),
+            file_type: file_type.clone(),
         }
     }
 }
@@ -37,11 +42,12 @@ impl FileManager {
         // TODO:
         // 读取配置文件
         //
-        // mkdir, if not exist
+        //
+        // ---------- create global map json
+        // mkdir, if doesn't exist
         std::fs::create_dir_all("./global").expect("Error: cannot create directory:  ./global");
         std::fs::create_dir_all("./base").expect("Error: cannot create directory:  ./base");
         // touch file and write empty json
-        //
         let map_path = Path::new("./global/TableMap.json");
         if !map_path.exists() {
             let mut file = fs::File::create(map_path).unwrap();
@@ -54,68 +60,87 @@ impl FileManager {
         FileManager {
             global_path: "./global/TableMap.json".to_string(),
             base_path: "./base/".to_string(),
-            table_map_data: serde_json::from_str(&global_map_string).unwrap(),
+            map_data: serde_json::from_str(&global_map_string).unwrap(),
         }
     }
 
     // TODO:
     // clear data
 
-    fn update_table_map(&self, table_map_data: &HashMap<String, TableItem>) {
+    fn update_file_map(&self, map_data: &HashMap<String, TableItem>) {
         let mapjson_path = Path::new(&self.global_path);
         let mut mapjson_file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)
             .open(mapjson_path)
             .expect("Cannot open TableMap.json for writing!");
-        let json_str = serde_json::to_string_pretty(table_map_data)
-            .expect("Cannot convert current map to string.");
+        let json_str =
+            serde_json::to_string_pretty(map_data).expect("Cannot convert current map to string.");
         mapjson_file
             .write_all(json_str.as_bytes())
             .expect("Failed in writing to TableMap.json!");
         println!("{}", json_str);
     }
 
-    // create a new table (allocate UUID, touch file, update mapfile)
-    // if success, return table uuid; otherwise return Error
-    pub fn new_table(&mut self, table_name: &str) -> Result<String, IOManagerError> {
-        if self.table_map_data.contains_key(table_name) {
+    // TODO:
+    // add character blacklist
+
+    // each file name is bind with a directory
+    // then using index to distinguish different type
+    pub fn create_file(
+        &mut self,
+        file_name: &str,
+        file_type: &PageType,
+    ) -> Result<String, IOManagerError> {
+        let dir_path = "./base/".to_string() + file_name;
+        let file_path = ResId::gen_file_path(file_name, file_type);
+        std::fs::create_dir_all(dir_path)
+            .expect(format!("Error: cannot create directory for {}", file_name).as_str());
+        // INFO: as_str: String -> &str
+        //       to_string: &str -> String
+
+        if self.map_data.contains_key(&file_path) {
             Err(IOManagerError::AlreadyExistError(format!(
-                "Table {} already exists.",
-                table_name
+                "File {} already exists.",
+                file_path
             )))
         } else {
             // update table map and write to map file
-            self.table_map_data
-                .insert(table_name.to_string(), TableItem::new(table_name));
-            self.update_table_map(&self.table_map_data);
+            self.map_data
+                .insert(file_path.to_string(), TableItem::new(file_name, file_type));
+            self.update_file_map(&self.map_data);
             // touch file
 
-            let table_path = self.base_path.to_owned() + table_name;
-            println!("----------------------");
-            println!("{}", table_path);
-            let table_data_path = Path::new(&table_path);
-            fs::File::create_new(table_data_path)?;
-            return Ok(format!("Create table {}", table_name));
+            fs::File::create_new(Path::new(&file_path))?;
+            return Ok(format!("Create file: {}", file_path));
         }
     }
 
-    pub fn delete_table(&mut self, table_name: &str) -> Result<String, IOManagerError> {
-        if self.table_map_data.contains_key(table_name) {
-            self.table_map_data.remove(table_name);
-            self.update_table_map(&self.table_map_data);
+    pub fn delete_file(
+        &mut self,
+        file_name: &str,
+        file_type: &PageType,
+    ) -> Result<String, IOManagerError> {
+        let file_path = ResId::gen_file_path(file_name, &file_type);
+        if self.map_data.contains_key(&file_path) {
+            self.map_data.remove(&file_path);
+            self.update_file_map(&self.map_data);
             // TODO:
             // 删除具体的表数据文件
             Ok("Delete successfully.".into())
         } else {
             Err(IOManagerError::NotFoundError(format!(
-                "Trying to delete a table that doesn't exist : \"{}\" !",
-                table_name
+                "Trying to delete a file that doesn't exist : \"{}\" !",
+                file_path
             )))
         }
     }
-    pub fn open_file(&self, path_str: &str) -> Result<fs::File, IOManagerError> {
-        let file_path = Path::new(path_str);
+    pub fn open_file(
+        &self,
+        file_name: &str,
+        file_type: &PageType,
+    ) -> Result<fs::File, IOManagerError> {
+        let file_path = ResId::gen_file_path(file_name, file_type);
         match OpenOptions::new().read(true).write(true).open(file_path) {
             Ok(f) => Ok(f),
             Err(e) => Err(IOManagerError::IOError(e)), // INFO:IOManagerError是自定义错误类型，还是需要用Err包装
