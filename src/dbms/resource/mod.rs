@@ -2,6 +2,8 @@ use std::fmt::{self, Display};
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::DATA_DIR;
+
 #[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub enum PageType {
     TABLE = 0,
@@ -37,7 +39,7 @@ impl ResId {
     pub fn gen_file_path(file_name: &str, file_type: &PageType) -> String {
         // INFO:
         // impl Display for enum type, then using to_string
-        let dir_path = "./base/".to_string() + file_name;
+        let dir_path = DATA_DIR.to_string() + "/base/" + file_name;
         let file_path = dir_path + "/" + file_name + "." + &file_type.to_string();
         file_path
     }

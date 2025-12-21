@@ -8,6 +8,7 @@ use std::fs::OpenOptions;
 use std::io::{Read, Seek, Write};
 use std::path::Path;
 
+use crate::config::DATA_DIR;
 use crate::dbms::resource::PageType;
 use crate::dbms::resource::ResId;
 use crate::error_type::IOManagerError;
@@ -45,21 +46,23 @@ impl FileManager {
         //
         // ---------- create global map json
         // mkdir, if doesn't exist
-        std::fs::create_dir_all("./global").expect("Error: cannot create directory:  ./global");
-        std::fs::create_dir_all("./base").expect("Error: cannot create directory:  ./base");
+        std::fs::create_dir_all(DATA_DIR.to_string() + "/global")
+            .expect("Error: cannot create directory:  global");
+        std::fs::create_dir_all(DATA_DIR.to_string() + "/base")
+            .expect("Error: cannot create directory:  base");
         // touch file and write empty json
-        let map_path = Path::new("./global/TableMap.json");
-        if !map_path.exists() {
+        let map_path = DATA_DIR.to_string() + "/global/TableMap.json";
+        if !Path::new(&map_path).exists() {
             let mut file = fs::File::create(map_path).unwrap();
             file.write_all(b"{}").unwrap();
         }
 
-        let global_map_string = fs::read_to_string("./global/TableMap.json")
+        let global_map_string = fs::read_to_string(DATA_DIR.to_string() + "/global/TableMap.json")
             .expect("TableMap.json file format incorrect!");
 
         FileManager {
-            global_path: "./global/TableMap.json".to_string(),
-            base_path: "./base/".to_string(),
+            global_path: DATA_DIR.to_string() + "/global/TableMap.json",
+            base_path: DATA_DIR.to_string() + "/base/",
             map_data: serde_json::from_str(&global_map_string).unwrap(),
         }
     }
@@ -92,7 +95,7 @@ impl FileManager {
         file_name: &str,
         file_type: &PageType,
     ) -> Result<String, IOManagerError> {
-        let dir_path = "./base/".to_string() + file_name;
+        let dir_path = DATA_DIR.to_string() + "/base/" + file_name;
         let file_path = ResId::gen_file_path(file_name, file_type);
         std::fs::create_dir_all(dir_path)
             .expect(format!("Error: cannot create directory for {}", file_name).as_str());
@@ -112,6 +115,11 @@ impl FileManager {
             // touch file
 
             fs::File::create_new(Path::new(&file_path))?;
+
+            // TEST:
+            //
+            println!("create file:{file_path}");
+
             return Ok(format!("Create file: {}", file_path));
         }
     }
@@ -141,6 +149,14 @@ impl FileManager {
         file_type: &PageType,
     ) -> Result<fs::File, IOManagerError> {
         let file_path = ResId::gen_file_path(file_name, file_type);
+        // TEST:
+        eprintln!("open file_path = {:?}", file_path);
+
+        match std::fs::metadata(&file_path) {
+            Ok(m) => eprintln!("metadata OK: len={}", m.len()),
+            Err(e) => eprintln!("metadata ERR: {:?} ({})", e.kind(), e),
+        }
+        // END
         match OpenOptions::new().read(true).write(true).open(file_path) {
             Ok(f) => Ok(f),
             Err(e) => Err(IOManagerError::IOError(e)), // INFO:IOManagerError是自定义错误类型，还是需要用Err包装

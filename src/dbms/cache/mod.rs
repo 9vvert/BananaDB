@@ -89,7 +89,11 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
             None => {
                 // request for data by ftile_sys
                 if !self.opened_file.contains_key(&file_path) {
-                    let new_fd = self.file_sys.open_file(&file_path, page_type).unwrap();
+                    // NOTE:
+                    // the key of opened_file is path, not base name
+                    println!("file:");
+                    println!("{}", file_path);
+                    let new_fd = self.file_sys.open_file(&file_name, page_type).unwrap();
                     self.opened_file.insert(file_path.to_string(), new_fd);
                 }
 
@@ -241,10 +245,12 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> Drop for CacheBuf<PAGE_NUM, 
         // Vec<Page> doesn't implement "Copy", so cannot move directly
         // use reference instead
 
-        // NOTE:
+        // INFO:
         // 如果使用for dirty_page in self.pages.iter().enumerate(),
         // 会导致所有权的引用问题（迭代的时候获得&mut self, 而下面self.write_back_page还需要）
         // 一个优雅的解决方法是：将迭代和write_back的时序分离开,这样就不会出现交错所有权引用的冲突
+        // 不过，其实还是没有完全发挥“安全”的空间，如果要使用可变引用的两个成员可以保证互不干扰，但是编译器无法知晓，还是会报错
+        // 如果时序上也无法做到完全不重叠，该怎么办？出了改变has接口，有没有简洁的实现方法？
         let dirty_page_id: Vec<usize> = self
             .pages
             .iter()
