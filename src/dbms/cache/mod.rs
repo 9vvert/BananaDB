@@ -57,10 +57,10 @@ pub struct CacheBuf<const PAGE_NUM: usize, const PAGE_SIZE: usize> {
 }
 
 impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE> {
-    pub fn new() -> Self {
+    pub fn new(global_path: &str, base_path: &str) -> Self {
         CacheBuf {
             // io
-            file_sys: FileManager::new(),
+            file_sys: FileManager::new(global_path, base_path),
             opened_file: HashMap::new(),
             // cache
             cache_map: HashMap::new(),
@@ -76,10 +76,11 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
         file_name: &str,
         page_id: usize,
         page_type: &PageType,
+        extra_info: &str,
     ) -> &mut Page<PAGE_SIZE> {
-        let res_id = ResId::new(page_type, file_name, page_id);
+        let res_id = ResId::new(page_type, file_name, page_id, extra_info);
 
-        let file_path = ResId::gen_file_path(file_name, page_type);
+        let file_path = ResId::gen_file_path(file_name, page_type, extra_info);
         // first: query if there is cache.
         // assume that the borrowd cache is dropped at once.
         match self.query_cache_index(&res_id) {
@@ -93,7 +94,10 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
                     // the key of opened_file is path, not base name
                     println!("file:");
                     println!("{}", file_path);
-                    let new_fd = self.file_sys.open_file(&file_name, page_type).unwrap();
+                    let new_fd = self
+                        .file_sys
+                        .open_file(&file_name, page_type, extra_info)
+                        .unwrap();
                     self.opened_file.insert(file_path.to_string(), new_fd);
                 }
 
@@ -118,15 +122,17 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
 
     // ================ Public Create ==================
     // pass
-    pub fn create_file(&mut self, file_name: &str, page_type: &PageType) {
+    pub fn create_file(&mut self, file_name: &str, page_type: &PageType, extra_info: &str) {
         // TODO:
         // detect error
-        self.file_sys.create_file(file_name, page_type).unwrap();
+        self.file_sys
+            .create_file(file_name, page_type, extra_info)
+            .unwrap();
     }
-    pub fn delete_file(&mut self, file_name: &str, page_type: &PageType) {
+    pub fn delete_file(&mut self, file_name: &str, page_type: &PageType, extra_info: &str) {
         // TODO:
         // detect error
-        self.file_sys.delete_file(file_name, page_type).unwrap();
+        self.file_sys.delete_file(file_name, page_type, extra_info);
     }
 
     // ================ Private function ===============
@@ -207,9 +213,10 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
             let wb_file_type = resid_parts.0;
             let wb_file_name = resid_parts.1;
             let wb_page_id = resid_parts.2;
+            let wb_extra_info = resid_parts.3;
             let mut wb_fd = self
                 .file_sys
-                .open_file(&wb_file_name, &wb_file_type)
+                .open_file(&wb_file_name, &wb_file_type, &wb_extra_info)
                 .unwrap();
             self.file_sys
                 .write_page(&mut wb_fd, wb_page_id, &drop_page.data)
