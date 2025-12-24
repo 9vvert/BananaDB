@@ -63,7 +63,7 @@ impl FileManager {
         // TODO:
         // delete file
         let file_path = ResId::gen_file_path(file_name, file_type, extra_info);
-        remove_file(file_path);
+        remove_file(file_path).unwrap();
     }
     pub fn open_file(
         &self,

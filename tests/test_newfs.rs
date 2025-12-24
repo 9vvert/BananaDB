@@ -48,4 +48,14 @@ fn test_newfs() {
 
     assert!(manager.create_index("def", 2).is_ok());
     assert!(manager.create_index("def", 0).is_ok());
+
+    // delete a nonexist table
+    assert!(manager.delete_table("apple").is_err());
+
+    // delete invalid index
+    assert!(manager.delete_index("apple", 0).is_err());
+    assert!(manager.delete_index("abc", 0).is_err());
+    assert!(manager.delete_index("def", 1).is_err());
+    // delete index
+    assert!(manager.delete_index("def", 0).is_ok());
 }

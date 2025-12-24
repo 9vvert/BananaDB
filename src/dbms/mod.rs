@@ -145,4 +145,39 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
     }
 
     // TODO:  delete
+
+    // delete a table file
+    pub fn delete_table(&mut self, name: &str) -> Result<(), String> {
+        // check if there is exist file
+        if !self.metadata_map.contains_key(name) {
+            return Err(format!("Table {} doesn't exist.", name));
+        }
+        // crate file, no extra info
+        self.db_io.delete_file(name, &resource::PageType::TABLE, "");
+        self.metadata_map.remove(name);
+        self.update_meta_json(&self.metadata_map);
+        return Ok(());
+    }
+
+    pub fn delete_index(&mut self, name: &str, index_of_col: usize) -> Result<(), String> {
+        // check if there is exist file
+        if !self.metadata_map.contains_key(name) {
+            return Err(format!("Table {} doesn't exist.", name));
+        }
+        // check if the index exist
+        let table_metadata = self.metadata_map.get_mut(name).unwrap();
+
+        // check if that index have been created.
+        if !table_metadata.index.contains(&index_of_col) {
+            return Err(format!("Index on that column doesn't exist"));
+        }
+
+        // extra info: column index
+        let extra_info = &index_of_col.to_string();
+        self.db_io
+            .delete_file(name, &resource::PageType::INDEX, extra_info);
+        table_metadata.index.remove(index_of_col);
+        self.update_meta_json(&self.metadata_map);
+        return Ok(());
+    }
 }

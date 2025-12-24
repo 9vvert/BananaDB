@@ -77,7 +77,7 @@ impl ResId {
 
         let page_id = parts.next().unwrap().parse().unwrap();
 
-        let extra_part = self.resource_id.split('@').next().unwrap().to_string();
+        let mut extra_part = self.resource_id.split('@').next().unwrap().to_string();
 
         (file_type, file_name, page_id, extra_part)
     }
