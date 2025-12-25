@@ -4,6 +4,9 @@ use bitmaps::Bitmap;
 use bytemuck::cast_slice;
 // 从IO_manager中申请到的页面缓存
 // 初始化成为一个PageData结构体
+
+pub type RecordId = u32;
+
 pub const TAIL_SIZE: usize = 64;
 pub const BITMAP_SIZE: usize = 32;
 pub const BITMAP_BIT_SIZE: usize = BITMAP_SIZE * 8;
@@ -24,7 +27,6 @@ impl<'a, const PAGE_SIZE: usize> DataPage<'a, PAGE_SIZE> {
     pub fn new(item_size: usize, page_data: &'a mut [u8; PAGE_SIZE]) -> Self {
         // from bytes to bitmap
         let bitmap_offset = PAGE_SIZE - TAIL_SIZE;
-        // INFO:
         //
         let bitmap_data_u8: &mut [u8] =
             &mut page_data[bitmap_offset..(bitmap_offset + BITMAP_SIZE)];
