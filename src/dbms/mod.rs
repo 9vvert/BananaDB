@@ -143,9 +143,6 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         self.update_meta_json(&self.metadata_map);
         return Ok(());
     }
-
-    // TODO:  delete
-
     // delete a table file
     pub fn delete_table(&mut self, name: &str) -> Result<(), String> {
         // check if there is exist file

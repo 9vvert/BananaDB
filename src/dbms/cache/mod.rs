@@ -189,8 +189,6 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
 
             self.lru_list.lift_page(cache_id).unwrap();
         }
-        // load data, and clear the dirty signal
-        self.pages[cache_id].data = buffer;
         self.pages[cache_id].set_clean();
 
         // add new map item

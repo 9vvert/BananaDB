@@ -15,7 +15,6 @@ pub struct DataPage<'a, const PAGE_SIZE: usize> {
     meta_data: usize,
     slot_bitmap: Bitmap<BITMAP_BIT_SIZE>,
     //
-    is_dirty: bool,
     item_size: usize,
     item_num: usize, // table item capacity
     data: &'a mut [u8; PAGE_SIZE],
@@ -41,7 +40,6 @@ impl<'a, const PAGE_SIZE: usize> DataPage<'a, PAGE_SIZE> {
             bitmap_offset: bitmap_offset,
             meta_data: meta_data,
             slot_bitmap: Bitmap::from(bitmap_data_u128_arr),
-            is_dirty: false,
             item_size: item_size,
             item_num: (PAGE_SIZE - TAIL_SIZE) / item_size,
             data: page_data,
