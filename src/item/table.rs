@@ -1,6 +1,6 @@
 // read meta-data from global.json
 
-use crate::item::record::{ColumnType, ColumnValue};
+use crate::item::page::record::ColumnType;
 
 pub struct MetaTable {
     col_type_list: Vec<ColumnType>,

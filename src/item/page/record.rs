@@ -1,5 +1,7 @@
 // define all possible columns
 
+use std::task::ready;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
@@ -28,3 +30,10 @@ pub enum ColumnValue {
 //         // match self {}
 //     }
 // }
+
+// TODO:
+// record item
+pub struct Record {
+    type_list
+
+}

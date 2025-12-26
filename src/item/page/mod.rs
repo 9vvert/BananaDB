@@ -5,14 +5,14 @@ use bytemuck::cast_slice;
 // 从IO_manager中申请到的页面缓存
 // 初始化成为一个PageData结构体
 
-pub type RecordId = u32;
+pub mod record;
 
 pub const TAIL_SIZE: usize = 64;
 pub const BITMAP_SIZE: usize = 32;
 pub const BITMAP_BIT_SIZE: usize = BITMAP_SIZE * 8;
 // NOTE:
 // Bitmap::from要求传入固定的[u128; 2]
-pub struct DataPage<'a, const PAGE_SIZE: usize> {
+pub struct TablePage<'a, const PAGE_SIZE: usize> {
     // fix part
     bitmap_offset: usize,
     meta_data: usize,
@@ -23,7 +23,7 @@ pub struct DataPage<'a, const PAGE_SIZE: usize> {
     data: &'a mut [u8; PAGE_SIZE],
 }
 
-impl<'a, const PAGE_SIZE: usize> DataPage<'a, PAGE_SIZE> {
+impl<'a, const PAGE_SIZE: usize> TablePage<'a, PAGE_SIZE> {
     pub fn new(item_size: usize, page_data: &'a mut [u8; PAGE_SIZE]) -> Self {
         // from bytes to bitmap
         let bitmap_offset = PAGE_SIZE - TAIL_SIZE;
@@ -38,7 +38,7 @@ impl<'a, const PAGE_SIZE: usize> DataPage<'a, PAGE_SIZE> {
         // metadata
         let meta_data = PAGE_SIZE - TAIL_SIZE + BITMAP_SIZE;
 
-        DataPage {
+        TablePage {
             bitmap_offset: bitmap_offset,
             meta_data: meta_data,
             slot_bitmap: Bitmap::from(bitmap_data_u128_arr),

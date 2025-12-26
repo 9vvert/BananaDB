@@ -5,7 +5,11 @@ use std::{
     path::Path,
 };
 
-use crate::{config::DATA_DIR, dbms::cache::CacheBuf, item::record::ColumnType};
+use crate::{
+    config::DATA_DIR,
+    dbms::cache::CacheBuf,
+    item::{MetaTable, page::record::ColumnType},
+};
 
 pub mod cache;
 pub mod resource;
@@ -47,6 +51,9 @@ pub struct DBMS<const PAGE_NUM: usize, const PAGE_SIZE: usize> {
     metadata_map: HashMap<String, TableMetaData>, // record  the meta info of a table
     global_path: String,
     base_path: String,
+    // HashMap: tablename -> table metadata
+    active_table_map: HashMap<String, MetaTable>,
+    //TODO: active_index_map: HashMap<String, MetaTable>,
 }
 
 impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
@@ -76,6 +83,8 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             metadata_map: metadata,
             global_path: global_path,
             base_path: base_path,
+            //
+            active_table_map: HashMap::new(),
         }
     }
     // update global/metactl.json
