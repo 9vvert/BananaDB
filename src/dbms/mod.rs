@@ -1,3 +1,6 @@
+// NOTE:
+// dmbs的抽象层级：
+// create table/index, insert item, delete item
 use std::{
     collections::HashMap,
     fs::{File, OpenOptions, read_to_string},
@@ -8,7 +11,13 @@ use std::{
 use crate::{
     config::DATA_DIR,
     dbms::cache::CacheBuf,
-    item::{MetaTable, page::record::ColumnType},
+    table::{
+        TableMetaData,
+        page::{
+            TablePage,
+            record::{ColumnType, RecordId},
+        },
+    },
 };
 
 pub mod cache;
@@ -17,43 +26,11 @@ pub mod resource;
 const PAGE_NUM: usize = 3;
 const PAGE_SIZE: usize = 4096;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-pub struct TableMetaData {
-    name: String,
-    column_type: Vec<ColumnType>,
-    column_name: Vec<String>,
-    index: Vec<usize>, // use which column
-}
-
-impl TableMetaData {
-    pub fn new(
-        name: &str,
-        column_type: Vec<&ColumnType>,
-        column_name: Vec<&str>,
-        column_index: Vec<usize>,
-    ) -> Self {
-        assert_eq!(column_type.len(), column_name.len());
-
-        Self {
-            name: name.to_string(),
-            // XXX:
-            // why the map will cause lsp error? shouldn't these two ways be the same?
-            // column_type: column_type.iter().map(|x| x.clone()).collect(),
-            column_type: column_type.into_iter().cloned().collect(),
-            column_name: column_name.iter().map(|x| x.to_string()).collect(),
-            index: column_index,
-        }
-    }
-}
-
 pub struct DBMS<const PAGE_NUM: usize, const PAGE_SIZE: usize> {
     pub db_io: CacheBuf<PAGE_NUM, PAGE_SIZE>,
     metadata_map: HashMap<String, TableMetaData>, // record  the meta info of a table
     global_path: String,
     base_path: String,
-    // HashMap: tablename -> table metadata
-    active_table_map: HashMap<String, MetaTable>,
-    //TODO: active_index_map: HashMap<String, MetaTable>,
 }
 
 impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
@@ -84,7 +61,6 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             global_path: global_path,
             base_path: base_path,
             //
-            active_table_map: HashMap::new(),
         }
     }
     // update global/metactl.json
@@ -113,9 +89,23 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         if self.metadata_map.contains_key(name) {
             return Err(format!("Table {} already exist.", name));
         }
+        // calculate the item size
+        let mut item_size: usize = 4; // plus the size of RecordId
+        for col_type in &column_type {
+            item_size += col_type.size();
+        }
         // crate file, no extra info
         self.db_io.create_file(name, &resource::PageType::TABLE, "");
-        let new_table_metadata = TableMetaData::new(name, column_type, column_name, Vec::new());
+        let new_table_metadata = TableMetaData::new(
+            name,
+            0,             // data page count: 0 at start
+            RecordId::NIL, // first free page: NULL at start
+            item_size,
+            column_type.len(),
+            column_name,
+            column_type,
+            Vec::new(),
+        );
         self.metadata_map
             .insert(name.to_string(), new_table_metadata);
         self.update_meta_json(&self.metadata_map);
@@ -139,7 +129,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             ));
         }
         // check if that index have been created.
-        if table_metadata.index.contains(&index_of_col) {
+        if table_metadata.column_index.contains(&index_of_col) {
             return Err(format!("Index on that column already exist"));
         }
 
@@ -148,7 +138,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         let extra_info = &index_of_col.to_string();
         self.db_io
             .create_file(name, &resource::PageType::INDEX, extra_info);
-        table_metadata.index.push(index_of_col);
+        table_metadata.column_index.push(index_of_col);
         self.update_meta_json(&self.metadata_map);
         return Ok(());
     }
@@ -174,7 +164,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         let table_metadata = self.metadata_map.get_mut(name).unwrap();
 
         // check if that index have been created.
-        if !table_metadata.index.contains(&index_of_col) {
+        if !table_metadata.column_index.contains(&index_of_col) {
             return Err(format!("Index on that column doesn't exist"));
         }
 
@@ -182,8 +172,51 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         let extra_info = &index_of_col.to_string();
         self.db_io
             .delete_file(name, &resource::PageType::INDEX, extra_info);
-        table_metadata.index.remove(index_of_col);
+        table_metadata.column_index.remove(index_of_col);
         self.update_meta_json(&self.metadata_map);
         return Ok(());
+    }
+
+    // =============== table item =================
+    pub fn insert_item(&mut self, name: &str) {
+        // NOTE:
+        // if no enough free slots, allocate new page
+        // current page count: x, then allocate page(x+1) (page 0 is reserved)
+
+        // TODO: may need to load if not exist
+        let table_metadata = self.metadata_map.get_mut(name).unwrap();
+
+        // if no free space, then allocate new page
+        if table_metadata.next_free_slot == RecordId::NIL {
+            let new_page_id = table_metadata.data_page_count + 1;
+            let new_page = self
+                .db_io
+                .get_page(name, new_page_id, &resource::PageType::TABLE, "");
+            // always set new page as dirty
+            new_page.set_dirty();
+
+            let new_data_page = &mut TablePage::new(table_metadata.item_size, &mut new_page.data);
+
+            // init page
+            let page_item_capacity = new_data_page.item_num;
+            let page_rid_start = table_metadata.data_page_count * page_item_capacity;
+            // SOME:
+            // [1..10].iter() ---> 1..10   [1..5] <----> [1..=4]
+            for single_item_id in 0..page_item_capacity {
+                let next_free_slot: RecordId;
+                if single_item_id == page_item_capacity - 1 {
+                    next_free_slot = RecordId::NIL;
+                } else {
+                    next_free_slot = RecordId((page_rid_start + single_item_id + 1) as u32);
+                }
+                // append returns (). it only modify the value
+                let mut item_data = next_free_slot.to_le_bytes().to_vec();
+                item_data.extend(vec![0u8; table_metadata.item_size]);
+
+                new_data_page.write_item(single_item_id, item_data);
+            }
+
+            table_metadata.next_free_slot = RecordId(page_rid_start as u32);
+        }
     }
 }

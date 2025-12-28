@@ -19,8 +19,8 @@ pub struct TablePage<'a, const PAGE_SIZE: usize> {
     slot_bitmap: Bitmap<BITMAP_BIT_SIZE>,
     //
     item_size: usize,
-    item_num: usize, // table item capacity
-    data: &'a mut [u8; PAGE_SIZE],
+    pub item_num: usize, // table item capacity
+    pub data: &'a mut [u8; PAGE_SIZE],
 }
 
 impl<'a, const PAGE_SIZE: usize> TablePage<'a, PAGE_SIZE> {

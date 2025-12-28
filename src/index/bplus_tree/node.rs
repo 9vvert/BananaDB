@@ -1,6 +1,6 @@
 use std::usize;
 
-use crate::{dbms::cache::Page, item::page::RecordId};
+use crate::{dbms::cache::Page, table::page::record::RecordId};
 
 pub type IndexNodeId = u32;
 
