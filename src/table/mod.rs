@@ -3,7 +3,7 @@ pub mod page;
 use std::usize;
 
 use crate::table::page::{
-    TablePage,
+    PAGE_SIZE, TAIL_SIZE, TablePage,
     record::{ColumnType, RecordId},
 };
 
@@ -14,8 +14,9 @@ pub struct TableMetaData {
     pub table_name: String,
     pub data_page_count: usize,
     pub next_free_slot: RecordId,
-    pub item_size: usize,    // size of each item
-    pub column_count: usize, // column count
+    pub item_size: usize,          // size of each item
+    pub page_item_capacity: usize, // how much item can each page contains
+    pub column_count: usize,       // column count
     pub column_name: Vec<String>,
     pub column_type: Vec<ColumnType>,
     pub column_offset: Vec<usize>, // offset of each column
@@ -59,6 +60,8 @@ impl TableMetaData {
             data_page_count: data_page_count,
             next_free_slot: next_free_slot,
             item_size: item_size,
+            page_item_capacity: (PAGE_SIZE - TAIL_SIZE) / item_size,
+
             column_count: column_count,
             column_name: column_name.iter().map(|x| x.to_string()).collect(),
             column_type: column_type.into_iter().cloned().collect(),

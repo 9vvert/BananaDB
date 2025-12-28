@@ -15,7 +15,7 @@ use crate::{
         TableMetaData,
         page::{
             TablePage,
-            record::{ColumnType, RecordId},
+            record::{ColumnType, RecordId, RecordItem},
         },
     },
 };
@@ -90,6 +90,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             return Err(format!("Table {} already exist.", name));
         }
         // calculate the item size
+        // NOTE: 在这里需要加上末尾的辅助信息大小
         let mut item_size: usize = 4; // plus the size of RecordId
         for col_type in &column_type {
             item_size += col_type.size();
@@ -178,7 +179,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
     }
 
     // =============== table item =================
-    pub fn insert_item(&mut self, name: &str) {
+    pub fn insert_item(&mut self, name: &str, data: Vec<u8>) {
         // NOTE:
         // if no enough free slots, allocate new page
         // current page count: x, then allocate page(x+1) (page 0 is reserved)
@@ -210,13 +211,38 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
                     next_free_slot = RecordId((page_rid_start + single_item_id + 1) as u32);
                 }
                 // append returns (). it only modify the value
-                let mut item_data = next_free_slot.to_le_bytes().to_vec();
-                item_data.extend(vec![0u8; table_metadata.item_size]);
+                // NOTE:
+                // col1 | col2 | ... | item_info(is_null, next_free_slot)
 
-                new_data_page.write_item(single_item_id, item_data);
+                let init_record_item =
+                    RecordItem::new(vec![0u8; table_metadata.item_size], next_free_slot);
+
+                new_data_page.write_item(single_item_id, init_record_item);
             }
 
+            // 将table_metadata中的第一个free_slot设置为新页的开头位置
             table_metadata.next_free_slot = RecordId(page_rid_start as u32);
         }
+
+        // ensure that current table has free_slot
+        assert_ne!(table_metadata.next_free_slot, RecordId::NIL);
+
+        // get the according page by table_metadata.next_free_slot
+        let rid: u32 = table_metadata.next_free_slot.get().unwrap();
+
+        let page_id = rid / table_metadata.page_item_capacity as u32;
+        let item_id = rid % table_metadata.page_item_capacity as u32;
+
+        let page_with_free_slot =
+            self.db_io
+                .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+        let data_page_with_free_slot =
+            &mut TablePage::new(table_metadata.item_size, &mut page_with_free_slot.data);
+        let free_item = data_page_with_free_slot.read_item(item_id as usize);
+        // set new "next_free_slot"
+        table_metadata.next_free_slot = free_item.next_free_slot;
+
+        let new_item = RecordItem::new(data, RecordId::NIL);
+        data_page_with_free_slot.write_item(item_id as usize, new_item);
     }
 }

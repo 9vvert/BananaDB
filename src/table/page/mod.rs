@@ -2,11 +2,16 @@ use std::{io, ops::BitAndAssign};
 
 use bitmaps::Bitmap;
 use bytemuck::cast_slice;
+
+use crate::table::page::record::RecordItem;
 // 从IO_manager中申请到的页面缓存
 // 初始化成为一个PageData结构体
 
 pub mod record;
 
+// TODO:
+// 规划各个常量
+pub const PAGE_SIZE: usize = 4096;
 pub const TAIL_SIZE: usize = 64;
 pub const BITMAP_SIZE: usize = 32;
 pub const BITMAP_BIT_SIZE: usize = BITMAP_SIZE * 8;
@@ -84,17 +89,18 @@ impl<'a, const PAGE_SIZE: usize> TablePage<'a, PAGE_SIZE> {
         self.slot_bitmap.set(index, true);
     }
 
-    pub fn read_item(&self, index: usize) -> Vec<u8> {
+    pub fn read_item(&self, index: usize) -> RecordItem {
         //protect
         self.check_index_violent(index);
 
         let item_start: usize = self.item_size * index;
-        return self.data[item_start..(item_start + self.item_size)].to_vec();
+        RecordItem::from_raw(self.data[item_start..(item_start + self.item_size)].to_vec())
     }
 
     // NOTE:
     // ensure the size of vector equals "item_size"
-    pub fn write_item(&mut self, index: usize, item_data: Vec<u8>) {
+    pub fn write_item(&mut self, index: usize, record_item: RecordItem) {
+        let item_data: Vec<u8> = record_item.move_to_bytes();
         //protect
         assert!(item_data.len() == self.item_size);
         self.check_index_violent(index);
