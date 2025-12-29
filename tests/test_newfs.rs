@@ -1,4 +1,4 @@
-use BananaDB::{dbms::DBMS, item::record::ColumnType};
+use BananaDB::{dbms::DBMS, table::page::record::ColumnType};
 
 #[test]
 fn test_newfs() {

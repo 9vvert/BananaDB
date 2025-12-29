@@ -1,6 +1,6 @@
 use std::{io, ops::BitAndAssign};
 
-use bitmaps::Bitmap;
+use bitvec::prelude::*;
 use bytemuck::cast_slice;
 
 use crate::table::page::record::RecordItem;
@@ -17,39 +17,26 @@ pub const BITMAP_SIZE: usize = 32;
 pub const BITMAP_BIT_SIZE: usize = BITMAP_SIZE * 8;
 // NOTE:
 // Bitmap::from要求传入固定的[u128; 2]
-pub struct TablePage<'a, const PAGE_SIZE: usize> {
-    // fix part
-    bitmap_offset: usize,
-    meta_data: usize,
-    slot_bitmap: Bitmap<BITMAP_BIT_SIZE>,
-    //
+pub struct TablePage<'a> {
     item_size: usize,
     pub item_num: usize, // table item capacity
-    pub data: &'a mut [u8; PAGE_SIZE],
+    // data
+    pub data: &'a mut [u8; PAGE_SIZE - TAIL_SIZE],
+    // metadata of a data page
+    slot_bitmap: &'a mut BitSlice<u8, Lsb0>,
 }
 
-impl<'a, const PAGE_SIZE: usize> TablePage<'a, PAGE_SIZE> {
+impl<'a> TablePage<'a> {
+    // TODO:
+    // 目前这里存在拷贝
     pub fn new(item_size: usize, page_data: &'a mut [u8; PAGE_SIZE]) -> Self {
-        // from bytes to bitmap
-        let bitmap_offset = PAGE_SIZE - TAIL_SIZE;
-        //
-        let bitmap_data_u8: &mut [u8] =
-            &mut page_data[bitmap_offset..(bitmap_offset + BITMAP_SIZE)];
-        // INFO:
-        // array to vec
-        let bitmap_data_u128_vec: Vec<u128> = cast_slice(bitmap_data_u8).to_vec();
-        let bitmap_data_u128_arr: [u128; 2] = bitmap_data_u128_vec.try_into().unwrap();
-        // TODO:
-        // metadata
-        let meta_data = PAGE_SIZE - TAIL_SIZE + BITMAP_SIZE;
+        let (items_data, bitmap_data) = page_data.split_at_mut(PAGE_SIZE - TAIL_SIZE);
 
         TablePage {
-            bitmap_offset: bitmap_offset,
-            meta_data: meta_data,
-            slot_bitmap: Bitmap::from(bitmap_data_u128_arr),
             item_size: item_size,
             item_num: (PAGE_SIZE - TAIL_SIZE) / item_size,
-            data: page_data,
+            data: items_data.try_into().unwrap(),
+            slot_bitmap: BitSlice::<u8, Lsb0>::from_slice_mut(bitmap_data),
         }
     }
     fn check_index_violent(&self, index: usize) {
@@ -62,24 +49,8 @@ impl<'a, const PAGE_SIZE: usize> TablePage<'a, PAGE_SIZE> {
         }
     }
 
-    // return a free slot
-    pub fn find_free_slot(&self) -> Option<usize> {
-        return match self.slot_bitmap.first_false_index() {
-            Some(x) => {
-                if x < self.item_num {
-                    Some(x)
-                } else {
-                    None
-                }
-            }
-            None => None,
-        };
-    }
     // clear the slot bits
     // used in first init
-    pub fn clear_slot(&mut self) {
-        self.slot_bitmap.bitand_assign(Bitmap::new());
-    }
     pub fn set_slot_free(&mut self, index: usize) {
         self.check_index_violent(index);
         self.slot_bitmap.set(index, false);
@@ -88,24 +59,45 @@ impl<'a, const PAGE_SIZE: usize> TablePage<'a, PAGE_SIZE> {
         self.check_index_violent(index);
         self.slot_bitmap.set(index, true);
     }
+    pub fn check_slot_stat(&self, index: usize) -> bool {
+        assert!(index < self.item_num);
+        self.slot_bitmap[index]
+    }
 
-    pub fn read_item(&self, index: usize) -> RecordItem {
+    // TIP: didn't return &mut RecordItem, for the "ref" needs its owner live longer. but here it
+    // will be destructed.
+    // Instead, RecordItem<'_> just return the "value". but since it is just constructed by "ref",
+    // so no copy will be introduced.
+    // NOTE: 想要达到“指针”的功能，未必要返回 &mut, 因为引用的前提是其Owner的声明周期安全
+    // 如果需要更长的声明周期，就必须返回值。这和“指针”并不矛盾，因为值本身也可以用引用来构造
+    pub fn get_item(&mut self, index: usize) -> RecordItem<'_> {
+        // TIP: to_vec() will cause copy. avoid it!
+
         //protect
         self.check_index_violent(index);
 
         let item_start: usize = self.item_size * index;
-        RecordItem::from_raw(self.data[item_start..(item_start + self.item_size)].to_vec())
+
+        RecordItem::new(&mut self.data[item_start..(item_start + self.item_size)])
     }
 
     // NOTE:
     // ensure the size of vector equals "item_size"
-    pub fn write_item(&mut self, index: usize, record_item: RecordItem) {
-        let item_data: Vec<u8> = record_item.move_to_bytes();
-        //protect
-        assert!(item_data.len() == self.item_size);
-        self.check_index_violent(index);
-
-        let item_start: usize = self.item_size * index;
-        self.data[item_start..(item_start + self.item_size)].copy_from_slice(&item_data);
-    }
+    //
+    // pub fn read_item(&self, index: usize) -> RecordItem {
+    //     //protect
+    //     self.check_index_violent(index);
+    //
+    //     let item_start: usize = self.item_size * index;
+    //     RecordItem::from_raw(self.data[item_start..(item_start + self.item_size)].to_vec())
+    // }
+    // pub fn write_item(&mut self, index: usize, record_item: RecordItem) {
+    //     let item_data: Vec<u8> = record_item.move_to_bytes();
+    //     //protect
+    //     assert!(item_data.len() == self.item_size);
+    //     self.check_index_violent(index);
+    //
+    //     let item_start: usize = self.item_size * index;
+    //     self.data[item_start..(item_start + self.item_size)].copy_from_slice(&item_data);
+    // }
 }

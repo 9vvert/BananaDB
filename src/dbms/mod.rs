@@ -1,6 +1,8 @@
 // NOTE:
 // dmbs的抽象层级：
 // create table/index, insert item, delete item
+use colored::Colorize;
+use hex::ToHex;
 use std::{
     collections::HashMap,
     fs::{File, OpenOptions, read_to_string},
@@ -179,17 +181,15 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
     }
 
     // =============== table item =================
-    pub fn insert_item(&mut self, name: &str, data: Vec<u8>) {
-        // NOTE:
+    pub fn insert_item(&mut self, name: &str, data: Vec<u8>) -> Result<RecordId, String> {
         // if no enough free slots, allocate new page
-        // current page count: x, then allocate page(x+1) (page 0 is reserved)
 
         // TODO: may need to load if not exist
         let table_metadata = self.metadata_map.get_mut(name).unwrap();
 
         // if no free space, then allocate new page
         if table_metadata.next_free_slot == RecordId::NIL {
-            let new_page_id = table_metadata.data_page_count + 1;
+            let new_page_id = table_metadata.data_page_count;
             let new_page = self
                 .db_io
                 .get_page(name, new_page_id, &resource::PageType::TABLE, "");
@@ -201,7 +201,9 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             // init page
             let page_item_capacity = new_data_page.item_num;
             let page_rid_start = table_metadata.data_page_count * page_item_capacity;
-            // SOME:
+            // NOTE: bump data_page_count after above two steps
+            table_metadata.data_page_count += 1;
+            // TIP:
             // [1..10].iter() ---> 1..10   [1..5] <----> [1..=4]
             for single_item_id in 0..page_item_capacity {
                 let next_free_slot: RecordId;
@@ -214,10 +216,9 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
                 // NOTE:
                 // col1 | col2 | ... | item_info(is_null, next_free_slot)
 
-                let init_record_item =
-                    RecordItem::new(vec![0u8; table_metadata.item_size], next_free_slot);
-
-                new_data_page.write_item(single_item_id, init_record_item);
+                let mut init_item = new_data_page.get_item(single_item_id);
+                init_item.item_data.fill(0);
+                init_item.set_next_free_slot(next_free_slot);
             }
 
             // 将table_metadata中的第一个free_slot设置为新页的开头位置
@@ -228,21 +229,130 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         assert_ne!(table_metadata.next_free_slot, RecordId::NIL);
 
         // get the according page by table_metadata.next_free_slot
-        let rid: u32 = table_metadata.next_free_slot.get().unwrap();
+        let rid = table_metadata.next_free_slot;
+        let rid_value: u32 = rid.get();
 
-        let page_id = rid / table_metadata.page_item_capacity as u32;
-        let item_id = rid % table_metadata.page_item_capacity as u32;
+        // NOTE:
+        // xxx.table只包含页数据，目前的计划是把metadata存放在global下的json中
+        // 如果后续信息较多，可以考虑增加新的文件
+        let page_id = rid_value / table_metadata.page_item_capacity as u32;
+        let item_id = rid_value % table_metadata.page_item_capacity as u32;
 
+        // get the page with free slot, and set it as dirty
         let page_with_free_slot =
             self.db_io
                 .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+        page_with_free_slot.set_dirty();
+        // TODO: 检查 DataPage类型中关于dirty中是否有重复的设置
         let data_page_with_free_slot =
             &mut TablePage::new(table_metadata.item_size, &mut page_with_free_slot.data);
-        let free_item = data_page_with_free_slot.read_item(item_id as usize);
-        // set new "next_free_slot"
-        table_metadata.next_free_slot = free_item.next_free_slot;
 
-        let new_item = RecordItem::new(data, RecordId::NIL);
-        data_page_with_free_slot.write_item(item_id as usize, new_item);
+        // get the free slot, read its "next_free_slot"
+        // update the "next_free_slot" in table header
+        let mut free_item = data_page_with_free_slot.get_item(item_id as usize);
+        table_metadata.next_free_slot = free_item.get_next_free_slot();
+        free_item.set_next_free_slot(RecordId::NIL);
+        free_item.item_data.copy_from_slice(&data);
+
+        // mark the slot as busy
+        data_page_with_free_slot.set_slot_busy(item_id as usize);
+
+        Ok(rid)
+    }
+    pub fn delete_item(&mut self, name: &str, rid: RecordId) -> Result<(), String> {
+        // check if the rid is out-of-range
+        let table_metadata = self.metadata_map.get_mut(name).unwrap();
+        assert!(
+            table_metadata.data_page_count * table_metadata.page_item_capacity > rid.get() as usize
+        );
+
+        // get target page
+        let rid_value: u32 = rid.get();
+        let page_id = rid_value / table_metadata.page_item_capacity as u32;
+        let item_id = rid_value % table_metadata.page_item_capacity as u32;
+        // TODO: 后续将一些usize接口转换成u32
+        let target_page =
+            self.db_io
+                .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+
+        // lazy delete
+        let target_data_page = &mut TablePage::new(table_metadata.item_size, &mut target_page.data);
+        target_data_page.set_slot_free(item_id as usize);
+        // set slot as free
+        target_data_page.set_slot_free(item_id as usize);
+
+        // now set table_metadata.next_free_slot point to this new free slot.
+        let mut target_item = target_data_page.get_item(item_id as usize);
+        target_item.set_next_free_slot(table_metadata.next_free_slot);
+        table_metadata.next_free_slot = rid;
+
+        Ok(())
+    }
+
+    // DEBUG:
+    // print debug info
+    // show the metadata of a table
+    pub fn show_table_metadata(&self, name: &str) {
+        let table_metadata = self.metadata_map.get(name).unwrap();
+        println!("--------------------------");
+        println!("{}: {}", "TableName".blue().bold(), name);
+        println!(
+            "{}: {}",
+            "data_page_count".purple(),
+            table_metadata.data_page_count
+        );
+        println!("{}: {}", "item_size".yellow(), table_metadata.item_size);
+        println!(
+            "{}: {}",
+            "page_item_capacity".green(),
+            table_metadata.page_item_capacity
+        );
+        println!(
+            "{}: {}",
+            "next_free_slot".red(),
+            table_metadata.next_free_slot.get()
+        );
+        println!("--------------------------");
+    }
+
+    pub fn show_next_free_slot(&self, name: &str) {
+        let table_metadata = self.metadata_map.get(name).unwrap();
+        println!(
+            "{}: {}",
+            "next_free_slot".red(),
+            table_metadata.next_free_slot.get()
+        );
+        println!("--------------------------");
+    }
+    pub fn show_table_page(&mut self, name: &str, page_id: usize) {
+        let table_metadata = self.metadata_map.get(name).unwrap();
+        let page_capacity = table_metadata.page_item_capacity;
+
+        let target_page =
+            self.db_io
+                .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+
+        // lazy delete
+        let target_data_page = &mut TablePage::new(table_metadata.item_size, &mut target_page.data);
+
+        println!("<###############################");
+        println!("{}: {}", "TableName".blue().bold(), name);
+        println!("{}: {}", "Page".yellow().bold(), page_id);
+        for i in 0..page_capacity {
+            println!("-------- slot {} --------", i.to_string().purple());
+            let validate = if target_data_page.check_slot_stat(i) {
+                1
+            } else {
+                0
+            };
+            println!("validate: {}", validate);
+
+            let item = target_data_page.get_item(i);
+            let item_data = &item.item_data;
+            println!("data: {}", item_data.encode_hex::<String>());
+            let item_info = &item.get_next_free_slot().get();
+            println!("next_free_slot: {:x}", item_info);
+        }
+        println!("###############################>");
     }
 }

@@ -64,7 +64,12 @@ impl ResId {
 
     // PageType, filename, pageid, extra
     pub fn break_resid(&self) -> (PageType, String, usize, String) {
-        let mut parts = self.resource_id.split('-');
+        let mut level1_parts = self.resource_id.split('@');
+
+        let prefix_part: String = level1_parts.next().unwrap().to_string();
+        let extra_part: String = level1_parts.next().unwrap().to_string();
+
+        let mut parts = prefix_part.split('-');
         let file_type = match parts.next() {
             Some("T") => PageType::TABLE,
             Some("I") => PageType::INDEX,
@@ -76,8 +81,6 @@ impl ResId {
         let file_name = parts.next().unwrap().to_string();
 
         let page_id = parts.next().unwrap().parse().unwrap();
-
-        let mut extra_part = self.resource_id.split('@').next().unwrap().to_string();
 
         (file_type, file_name, page_id, extra_part)
     }
