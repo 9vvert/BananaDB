@@ -2,7 +2,7 @@ use BananaDB::{dbms::DBMS, table::page::record::ColumnType};
 
 #[test]
 fn test_newfs() {
-    let mut manager = DBMS::<4, 4096>::new();
+    let mut manager = DBMS::<4>::new();
     assert!(
         manager
             .create_table(

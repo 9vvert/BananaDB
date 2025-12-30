@@ -12,8 +12,7 @@ use crate::config::DATA_DIR;
 use crate::dbms::resource::PageType;
 use crate::dbms::resource::ResId;
 use crate::error_type::IOManagerError;
-
-const PAGE_SIZE: u16 = 4096;
+use crate::table::page::PAGE_SIZE;
 
 pub struct FileManager {
     global_path: String,

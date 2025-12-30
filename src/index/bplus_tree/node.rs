@@ -27,7 +27,7 @@ struct LeafNode<const LEAF_SLOT_CAPACITY: usize, const PAGE_SIZE: usize> {
 impl<const LEAF_SLOT_CAPACITY: usize, const PAGE_SIZE: usize>
     LeafNode<LEAF_SLOT_CAPACITY, PAGE_SIZE>
 {
-    pub fn new(page: &mut Page<PAGE_SIZE>) -> Self {
+    pub fn new(page: &mut Page) -> Self {
         //
         let page_data = page.data;
 

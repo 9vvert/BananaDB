@@ -12,12 +12,12 @@ use std::{
 
 use crate::{
     config::DATA_DIR,
-    dbms::cache::CacheBuf,
+    dbms::cache::{CacheBuf, Page},
     table::{
         TableMetaData,
         page::{
             TablePage,
-            record::{ColumnType, RecordId, RecordItem},
+            record::{ColumnType, ColumnValue, RecordId, RecordItem},
         },
     },
 };
@@ -28,14 +28,19 @@ pub mod resource;
 const PAGE_NUM: usize = 3;
 const PAGE_SIZE: usize = 4096;
 
-pub struct DBMS<const PAGE_NUM: usize, const PAGE_SIZE: usize> {
-    pub db_io: CacheBuf<PAGE_NUM, PAGE_SIZE>,
+pub struct RecordItemGuard<'a> {
+    page: TablePage<'a>,
+    pub item: RecordItem<'a>,
+}
+
+pub struct DBMS<const PAGE_NUM: usize> {
+    pub db_io: CacheBuf<PAGE_NUM>,
     metadata_map: HashMap<String, TableMetaData>, // record  the meta info of a table
     global_path: String,
     base_path: String,
 }
 
-impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
+impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
     pub fn new() -> Self {
         // 1. create ./base ./global, if doesn't exist
         std::fs::create_dir_all(DATA_DIR.to_string() + "/global")
@@ -276,12 +281,8 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             self.db_io
                 .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
 
-        // lazy delete
         let target_data_page =
             &mut TablePage::new(&table_metadata.const_info, &mut target_page.data);
-        target_data_page.set_slot_free(item_id as usize);
-        // set slot as free
-        target_data_page.set_slot_free(item_id as usize);
 
         // now set table_metadata.next_free_slot point to this new free slot.
         let mut target_item = target_data_page.get_item(item_id as usize);
@@ -289,6 +290,97 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         table_metadata.mut_info.next_free_slot = rid;
 
         Ok(())
+    }
+
+    // item read/modify
+    pub fn read_item_all(&mut self, name: &str, rid: RecordId) -> Result<Vec<ColumnValue>, String> {
+        let f = |item: &mut RecordItem, metadata: &TableMetaData| {
+            let mut item_all_value: Vec<ColumnValue> = Vec::new();
+            for i in 0..metadata.const_info.column_count {
+                let col_value = item.get_column_val(i).unwrap();
+                item_all_value.push(col_value);
+            }
+            Ok(item_all_value)
+        };
+        self.with_item(name, rid, false, f)
+    }
+    pub fn read_item_col(
+        &mut self,
+        name: &str,
+        rid: RecordId,
+        col_name: &str,
+    ) -> Result<ColumnValue, String> {
+        let f = |item: &mut RecordItem, metadata: &TableMetaData| {
+            let col_index = match metadata
+                .const_info
+                .column_name
+                .iter()
+                .position(|s| s == col_name)
+            {
+                Some(x) => x,
+                None => {
+                    return Err("Invalid Colume name".to_string());
+                }
+            };
+
+            item.get_column_val(col_index)
+        };
+        self.with_item(name, rid, false, f)
+    }
+
+    pub fn write_item_col(
+        &mut self,
+        name: &str,
+        rid: RecordId,
+        col_name: &str,
+        col_val: ColumnValue,
+    ) -> Result<(), String> {
+        let f = |item: &mut RecordItem, metadata: &TableMetaData| {
+            let col_index = match metadata
+                .const_info
+                .column_name
+                .iter()
+                .position(|s| s == col_name)
+            {
+                Some(x) => x,
+                None => {
+                    return Err("Invalid Colume name".to_string());
+                }
+            };
+
+            item.set_column_val(col_index, col_val)
+        };
+        self.with_item(name, rid, false, f)
+    }
+
+    // NOTE:
+    // 用闭包来实现代码复用（有些情况如果用普通函数来实现代码复用，会引入生命周期和所有权的问题，但是闭包不会引入函数“return”带来的生命周期问题)
+    // with_item仅用于对item的读写操作，不会修改bitmap
+    fn with_item<R>(
+        &mut self,
+        name: &str,
+        rid: RecordId,
+        set_dirty: bool,
+        f: impl FnOnce(&mut RecordItem, &TableMetaData) -> Result<R, String>,
+    ) -> Result<R, String> {
+        let table_metadata = self.metadata_map.get_mut(name).unwrap();
+
+        let rid_value = rid.get();
+        let page_id = rid_value / table_metadata.const_info.page_item_capacity as u32;
+        let item_id = rid_value % table_metadata.const_info.page_item_capacity as u32;
+
+        let target_page =
+            self.db_io
+                .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+
+        if set_dirty {
+            target_page.set_dirty();
+        }
+
+        let mut table_page = TablePage::new(&table_metadata.const_info, &mut target_page.data);
+
+        let mut item = table_page.get_item(item_id as usize);
+        f(&mut item, table_metadata)
     }
 
     // DEBUG:

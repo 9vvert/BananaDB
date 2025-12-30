@@ -5,7 +5,7 @@ use BananaDB::{
 
 #[test]
 fn test_item() {
-    let mut manager = DBMS::<4, 4096>::new();
+    let mut manager = DBMS::<4>::new();
     assert!(
         manager
             .create_table(

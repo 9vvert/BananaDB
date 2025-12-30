@@ -1,6 +1,4 @@
-// define all possible columns
-
-use std::{ops::Index, task::ready, usize};
+use std::usize;
 
 use serde::{Deserialize, Serialize};
 

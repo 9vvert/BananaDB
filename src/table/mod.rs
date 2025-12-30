@@ -3,7 +3,7 @@ pub mod page;
 use std::usize;
 
 use crate::table::page::{
-    PAGE_SIZE, TAIL_SIZE, TablePage,
+    PAGE_SIZE, TAIL_SIZE,
     record::{ColumnType, RecordId},
 };
 
