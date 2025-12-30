@@ -41,9 +41,18 @@ fn test_item() {
     manager.show_next_free_slot("abc");
     manager.show_table_page("abc", 0);
 
-    // insert
+    // insert agin (check if the new item falls into the new slot)
     let data4: Vec<u8> = vec![5, 3, 4, 5, 0, 0, 2, 11, 0x0, 0x0, 0x0];
     manager.insert_item("abc", data4).unwrap();
     manager.show_next_free_slot("abc");
     manager.show_table_page("abc", 0);
+
+    // insert bunches of items
+    for i in 1..300 {
+        let tmpdata: Vec<u8> = vec![0xff, 3, 4, 5, 0, 0, 2, 11, 0x0, 0x0, 0x0];
+        manager.insert_item("abc", tmpdata).unwrap();
+    }
+    manager.show_table_metadata("abc");
+    manager.show_table_page("abc", 0);
+    manager.show_table_page("abc", 1);
 }

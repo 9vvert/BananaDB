@@ -123,7 +123,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
 
         let table_metadata = self.metadata_map.get_mut(name).unwrap();
         // check if the index is illeagal (doesn't exist / exceed bound)
-        let column_size = table_metadata.column_type.len();
+        let column_size = table_metadata.const_info.column_type.len();
         if index_of_col >= column_size {
             return Err(format!(
                 "Cannot create index {} on a table with only {} columns",
@@ -132,7 +132,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             ));
         }
         // check if that index have been created.
-        if table_metadata.column_index.contains(&index_of_col) {
+        if table_metadata.mut_info.column_index.contains(&index_of_col) {
             return Err(format!("Index on that column already exist"));
         }
 
@@ -141,7 +141,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         let extra_info = &index_of_col.to_string();
         self.db_io
             .create_file(name, &resource::PageType::INDEX, extra_info);
-        table_metadata.column_index.push(index_of_col);
+        table_metadata.mut_info.column_index.push(index_of_col);
         self.update_meta_json(&self.metadata_map);
         return Ok(());
     }
@@ -167,7 +167,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         let table_metadata = self.metadata_map.get_mut(name).unwrap();
 
         // check if that index have been created.
-        if !table_metadata.column_index.contains(&index_of_col) {
+        if !table_metadata.mut_info.column_index.contains(&index_of_col) {
             return Err(format!("Index on that column doesn't exist"));
         }
 
@@ -175,7 +175,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         let extra_info = &index_of_col.to_string();
         self.db_io
             .delete_file(name, &resource::PageType::INDEX, extra_info);
-        table_metadata.column_index.remove(index_of_col);
+        table_metadata.mut_info.column_index.remove(index_of_col);
         self.update_meta_json(&self.metadata_map);
         return Ok(());
     }
@@ -188,21 +188,21 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         let table_metadata = self.metadata_map.get_mut(name).unwrap();
 
         // if no free space, then allocate new page
-        if table_metadata.next_free_slot == RecordId::NIL {
-            let new_page_id = table_metadata.data_page_count;
+        if table_metadata.mut_info.next_free_slot == RecordId::NIL {
+            let new_page_id = table_metadata.mut_info.data_page_count;
             let new_page = self
                 .db_io
                 .get_page(name, new_page_id, &resource::PageType::TABLE, "");
             // always set new page as dirty
             new_page.set_dirty();
 
-            let new_data_page = &mut TablePage::new(table_metadata.item_size, &mut new_page.data);
+            let new_data_page = &mut TablePage::new(&table_metadata.const_info, &mut new_page.data);
 
             // init page
-            let page_item_capacity = new_data_page.item_num;
-            let page_rid_start = table_metadata.data_page_count * page_item_capacity;
+            let page_item_capacity = new_data_page.const_metadata.page_item_capacity;
+            let page_rid_start = table_metadata.mut_info.data_page_count * page_item_capacity;
             // NOTE: bump data_page_count after above two steps
-            table_metadata.data_page_count += 1;
+            table_metadata.mut_info.data_page_count += 1;
             // TIP:
             // [1..10].iter() ---> 1..10   [1..5] <----> [1..=4]
             for single_item_id in 0..page_item_capacity {
@@ -222,21 +222,21 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
             }
 
             // 将table_metadata中的第一个free_slot设置为新页的开头位置
-            table_metadata.next_free_slot = RecordId(page_rid_start as u32);
+            table_metadata.mut_info.next_free_slot = RecordId(page_rid_start as u32);
         }
 
         // ensure that current table has free_slot
-        assert_ne!(table_metadata.next_free_slot, RecordId::NIL);
+        assert_ne!(table_metadata.mut_info.next_free_slot, RecordId::NIL);
 
         // get the according page by table_metadata.next_free_slot
-        let rid = table_metadata.next_free_slot;
+        let rid = table_metadata.mut_info.next_free_slot;
         let rid_value: u32 = rid.get();
 
         // NOTE:
         // xxx.table只包含页数据，目前的计划是把metadata存放在global下的json中
         // 如果后续信息较多，可以考虑增加新的文件
-        let page_id = rid_value / table_metadata.page_item_capacity as u32;
-        let item_id = rid_value % table_metadata.page_item_capacity as u32;
+        let page_id = rid_value / table_metadata.const_info.page_item_capacity as u32;
+        let item_id = rid_value % table_metadata.const_info.page_item_capacity as u32;
 
         // get the page with free slot, and set it as dirty
         let page_with_free_slot =
@@ -245,12 +245,12 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         page_with_free_slot.set_dirty();
         // TODO: 检查 DataPage类型中关于dirty中是否有重复的设置
         let data_page_with_free_slot =
-            &mut TablePage::new(table_metadata.item_size, &mut page_with_free_slot.data);
+            &mut TablePage::new(&table_metadata.const_info, &mut page_with_free_slot.data);
 
         // get the free slot, read its "next_free_slot"
         // update the "next_free_slot" in table header
         let mut free_item = data_page_with_free_slot.get_item(item_id as usize);
-        table_metadata.next_free_slot = free_item.get_next_free_slot();
+        table_metadata.mut_info.next_free_slot = free_item.get_next_free_slot();
         free_item.set_next_free_slot(RecordId::NIL);
         free_item.item_data.copy_from_slice(&data);
 
@@ -263,28 +263,30 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         // check if the rid is out-of-range
         let table_metadata = self.metadata_map.get_mut(name).unwrap();
         assert!(
-            table_metadata.data_page_count * table_metadata.page_item_capacity > rid.get() as usize
+            table_metadata.mut_info.data_page_count * table_metadata.const_info.page_item_capacity
+                > rid.get() as usize
         );
 
         // get target page
         let rid_value: u32 = rid.get();
-        let page_id = rid_value / table_metadata.page_item_capacity as u32;
-        let item_id = rid_value % table_metadata.page_item_capacity as u32;
+        let page_id = rid_value / table_metadata.const_info.page_item_capacity as u32;
+        let item_id = rid_value % table_metadata.const_info.page_item_capacity as u32;
         // TODO: 后续将一些usize接口转换成u32
         let target_page =
             self.db_io
                 .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
 
         // lazy delete
-        let target_data_page = &mut TablePage::new(table_metadata.item_size, &mut target_page.data);
+        let target_data_page =
+            &mut TablePage::new(&table_metadata.const_info, &mut target_page.data);
         target_data_page.set_slot_free(item_id as usize);
         // set slot as free
         target_data_page.set_slot_free(item_id as usize);
 
         // now set table_metadata.next_free_slot point to this new free slot.
         let mut target_item = target_data_page.get_item(item_id as usize);
-        target_item.set_next_free_slot(table_metadata.next_free_slot);
-        table_metadata.next_free_slot = rid;
+        target_item.set_next_free_slot(table_metadata.mut_info.next_free_slot);
+        table_metadata.mut_info.next_free_slot = rid;
 
         Ok(())
     }
@@ -299,18 +301,22 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         println!(
             "{}: {}",
             "data_page_count".purple(),
-            table_metadata.data_page_count
+            table_metadata.mut_info.data_page_count
         );
-        println!("{}: {}", "item_size".yellow(), table_metadata.item_size);
+        println!(
+            "{}: {}",
+            "item_size".yellow(),
+            table_metadata.const_info.item_size
+        );
         println!(
             "{}: {}",
             "page_item_capacity".green(),
-            table_metadata.page_item_capacity
+            table_metadata.const_info.page_item_capacity
         );
         println!(
             "{}: {}",
             "next_free_slot".red(),
-            table_metadata.next_free_slot.get()
+            table_metadata.mut_info.next_free_slot.get()
         );
         println!("--------------------------");
     }
@@ -320,20 +326,21 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> DBMS<PAGE_NUM, PAGE_SIZE> {
         println!(
             "{}: {}",
             "next_free_slot".red(),
-            table_metadata.next_free_slot.get()
+            table_metadata.mut_info.next_free_slot.get()
         );
         println!("--------------------------");
     }
     pub fn show_table_page(&mut self, name: &str, page_id: usize) {
         let table_metadata = self.metadata_map.get(name).unwrap();
-        let page_capacity = table_metadata.page_item_capacity;
+        let page_capacity = table_metadata.const_info.page_item_capacity;
 
         let target_page =
             self.db_io
                 .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
 
         // lazy delete
-        let target_data_page = &mut TablePage::new(table_metadata.item_size, &mut target_page.data);
+        let target_data_page =
+            &mut TablePage::new(&table_metadata.const_info, &mut target_page.data);
 
         println!("<###############################");
         println!("{}: {}", "TableName".blue().bold(), name);

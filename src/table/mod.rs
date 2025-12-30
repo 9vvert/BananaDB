@@ -8,19 +8,11 @@ use crate::table::page::{
 };
 
 // NOTE:
-// MetaTable代表一个Table文件的元信息，通常从配置文件中读取
+// 将TableMetaData分成const和mut部分，其中const部分在创建表的过程中已经确定；而mut则可能随着表的使用而发生变化
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct TableMetaData {
-    pub table_name: String,
-    pub data_page_count: usize,
-    pub next_free_slot: RecordId,
-    pub item_size: usize,          // size of each item
-    pub page_item_capacity: usize, // how much item can each page contains
-    pub column_count: usize,       // column count
-    pub column_name: Vec<String>,
-    pub column_type: Vec<ColumnType>,
-    pub column_offset: Vec<usize>, // offset of each column
-    pub column_index: Vec<usize>,  // vector of built index
+    pub const_info: ConstTableMetadata,
+    pub mut_info: MutTableMetadata,
 }
 
 impl TableMetaData {
@@ -52,23 +44,44 @@ impl TableMetaData {
         // assert_eq!(item_size, real_size);
         assert_eq!(column_count, column_type.len());
         assert_eq!(column_name.len(), column_type.len());
-        //
         //NOTE:
         //实际的item_size可以大于各个column size之和，方便后续增加null等信息
         TableMetaData {
-            table_name: table_name.to_string(),
-            data_page_count: data_page_count,
-            next_free_slot: next_free_slot,
-            item_size: item_size,
-            page_item_capacity: (PAGE_SIZE - TAIL_SIZE) / item_size,
+            const_info: ConstTableMetadata {
+                table_name: table_name.to_string(),
+                item_size: item_size,
+                page_item_capacity: (PAGE_SIZE - TAIL_SIZE) / item_size,
+                column_count: column_count,
+                column_name: column_name.iter().map(|x| x.to_string()).collect(),
+                column_type: column_type.into_iter().cloned().collect(),
+                column_offset: col_offset_list,
+            },
 
-            column_count: column_count,
-            column_name: column_name.iter().map(|x| x.to_string()).collect(),
-            column_type: column_type.into_iter().cloned().collect(),
-            column_offset: col_offset_list,
-            column_index: column_index,
+            mut_info: MutTableMetadata {
+                data_page_count: data_page_count,
+                next_free_slot: next_free_slot,
+                column_index: column_index,
+            },
         }
     }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct ConstTableMetadata {
+    pub table_name: String,
+    pub item_size: usize,          // size of each item
+    pub page_item_capacity: usize, // how much item can each page contains
+    pub column_count: usize,       // column count
+    pub column_name: Vec<String>,
+    pub column_type: Vec<ColumnType>,
+    pub column_offset: Vec<usize>, // offset of each column
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct MutTableMetadata {
+    pub data_page_count: usize,
+    pub next_free_slot: RecordId,
+    pub column_index: Vec<usize>, // vector of built index
 }
 
 // pub struct TableManager<const PAGE_SIZE: usize> {

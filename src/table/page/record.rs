@@ -1,6 +1,6 @@
 // define all possible columns
 
-use std::{task::ready, usize};
+use std::{ops::Index, task::ready, usize};
 
 use serde::{Deserialize, Serialize};
 
@@ -35,7 +35,7 @@ impl RecordId {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
+#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 pub enum ColumnType {
     INT,
     CHAR(usize),
@@ -53,25 +53,31 @@ impl ColumnType {
 #[derive(Clone, Deserialize, Serialize)]
 pub enum ColumnValue {
     INT(i32),
-    CAHR(Vec<u8>),
+    CAHR(String),
 }
 
-// impl ColumnValue {
-//     pub fn new(&mut self) -> Self {
-//         // match self {}
-//     }
-// }
+// TODO: Constraint
+#[derive(Clone, Debug)]
+pub enum Constraint {
+    NotNull,
+    IntRange { min: i32, max: i32 },
+    // 未来：CharCharset、Regex、Unique、...
+}
 
-// TODO:
-// record item
 pub struct RecordItem<'a> {
     pub item_data: &'a mut [u8],
     next_free_slot: &'a mut [u8; 4],
+    column_type: &'a Vec<ColumnType>,
+    column_offset: &'a Vec<usize>,
 }
 
 impl<'a> RecordItem<'a> {
     // TIP: 需要在变量前面声明mut，而不是type里
-    pub fn new(total_data: &'a mut [u8]) -> Self {
+    pub fn new(
+        total_data: &'a mut [u8],
+        column_type: &'a Vec<ColumnType>,
+        column_offset: &'a Vec<usize>,
+    ) -> Self {
         let total_len = total_data.len();
 
         // TIP: total_data是一块字节引用，如果想要将其中两个引用分开，就需要使用split_at_mut
@@ -87,6 +93,8 @@ impl<'a> RecordItem<'a> {
         Self {
             item_data,
             next_free_slot,
+            column_type,
+            column_offset,
         }
     }
 
@@ -101,13 +109,69 @@ impl<'a> RecordItem<'a> {
         RecordId::from_le_bytes(*self.next_free_slot)
     }
 
-    // TIP: 参数使用 self 来将自身移动,防止拷贝。但是这回导致自身被销毁
-    // &mut [u8] is a "borrowed view", so cannot add two &[u8] (e.g: u may borrow a &[u8] which is
-    // a part of a big block, so "adding" is impossible)
-    // pub fn move_to_bytes(self) -> &'a mut [u8] {
-    //     let item_info: &mut [u8; 4] = self.next_free_slot.get().try_into().unwrap();
-    //     let item_data: &mut [u8] = self.item_data;
-    //     item_data + item_info
-    // }
-    //
+    pub fn get_column_val(&self, col_index: usize) -> Result<ColumnValue, String> {
+        if col_index >= self.column_type.len() {
+            return Err("Column out of range".to_string());
+        }
+
+        let target_offset = self.column_offset[col_index];
+        let target_type = self.column_type[col_index];
+        let target_size = target_type.size();
+
+        // NOTE: impl a dynamic adapter for ColumnValue is hard.
+        // so here use an easy way
+        match target_type {
+            ColumnType::INT => {
+                let int_val: i32 = i32::from_le_bytes(
+                    self.item_data[target_offset..target_offset + target_size]
+                        .try_into()
+                        .unwrap(),
+                );
+                Ok(ColumnValue::INT(int_val))
+            }
+            ColumnType::CHAR(_) => {
+                let str_val: String = str::from_utf8(
+                    self.item_data[target_offset..target_offset + target_size]
+                        .try_into()
+                        .unwrap(),
+                )
+                .unwrap()
+                .to_string();
+                Ok(ColumnValue::CAHR(str_val))
+            }
+        }
+    }
+
+    pub fn set_column_val(&mut self, col_index: usize, col_val: ColumnValue) -> Result<(), String> {
+        if col_index >= self.column_type.len() {
+            return Err("Column out of range".to_string());
+        }
+
+        let target_offset = self.column_offset[col_index];
+        let target_type = self.column_type[col_index];
+        let target_size = target_type.size();
+
+        match col_val {
+            ColumnValue::INT(x) => {
+                if target_type != ColumnType::INT {
+                    return Err("Column type mismatch".to_string());
+                }
+                let int_bytes: [u8; 4] = x.to_le_bytes();
+                self.item_data[target_offset..target_offset + target_size]
+                    .copy_from_slice(&int_bytes);
+
+                Ok(())
+            }
+            ColumnValue::CAHR(s) => {
+                // NOTE: must specify the char length of CHAR (also a part of "enum type")
+                if target_type != ColumnType::CHAR(target_size) {
+                    return Err("Column type mismatch".to_string());
+                }
+                let str_bytes: &[u8] = s.as_bytes();
+                self.item_data[target_offset..target_offset + target_size]
+                    .copy_from_slice(str_bytes);
+                Ok(())
+            }
+        }
+    }
 }

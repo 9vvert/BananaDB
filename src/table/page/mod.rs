@@ -3,7 +3,7 @@ use std::{io, ops::BitAndAssign};
 use bitvec::prelude::*;
 use bytemuck::cast_slice;
 
-use crate::table::page::record::RecordItem;
+use crate::table::{ConstTableMetadata, TableMetaData, page::record::RecordItem};
 // 从IO_manager中申请到的页面缓存
 // 初始化成为一个PageData结构体
 
@@ -18,8 +18,8 @@ pub const BITMAP_BIT_SIZE: usize = BITMAP_SIZE * 8;
 // NOTE:
 // Bitmap::from要求传入固定的[u128; 2]
 pub struct TablePage<'a> {
-    item_size: usize,
-    pub item_num: usize, // table item capacity
+    pub const_metadata: &'a ConstTableMetadata,
+
     // data
     pub data: &'a mut [u8; PAGE_SIZE - TAIL_SIZE],
     // metadata of a data page
@@ -29,22 +29,21 @@ pub struct TablePage<'a> {
 impl<'a> TablePage<'a> {
     // TODO:
     // 目前这里存在拷贝
-    pub fn new(item_size: usize, page_data: &'a mut [u8; PAGE_SIZE]) -> Self {
+    pub fn new(const_metadata: &'a ConstTableMetadata, page_data: &'a mut [u8; PAGE_SIZE]) -> Self {
         let (items_data, bitmap_data) = page_data.split_at_mut(PAGE_SIZE - TAIL_SIZE);
 
         TablePage {
-            item_size: item_size,
-            item_num: (PAGE_SIZE - TAIL_SIZE) / item_size,
+            const_metadata: const_metadata,
             data: items_data.try_into().unwrap(),
             slot_bitmap: BitSlice::<u8, Lsb0>::from_slice_mut(bitmap_data),
         }
     }
     fn check_index_violent(&self, index: usize) {
-        if index >= self.item_num {
+        if index >= self.const_metadata.page_item_capacity {
             panic!(
                 "Trying to use an illegal slot index {}, max is {}",
                 index,
-                self.item_num - 1
+                self.const_metadata.page_item_capacity - 1
             );
         }
     }
@@ -60,7 +59,7 @@ impl<'a> TablePage<'a> {
         self.slot_bitmap.set(index, true);
     }
     pub fn check_slot_stat(&self, index: usize) -> bool {
-        assert!(index < self.item_num);
+        assert!(index < self.const_metadata.page_item_capacity);
         self.slot_bitmap[index]
     }
 
@@ -76,28 +75,12 @@ impl<'a> TablePage<'a> {
         //protect
         self.check_index_violent(index);
 
-        let item_start: usize = self.item_size * index;
+        let item_start: usize = self.const_metadata.item_size * index;
 
-        RecordItem::new(&mut self.data[item_start..(item_start + self.item_size)])
+        RecordItem::new(
+            &mut self.data[item_start..(item_start + self.const_metadata.item_size)],
+            &self.const_metadata.column_type,
+            &self.const_metadata.column_offset,
+        )
     }
-
-    // NOTE:
-    // ensure the size of vector equals "item_size"
-    //
-    // pub fn read_item(&self, index: usize) -> RecordItem {
-    //     //protect
-    //     self.check_index_violent(index);
-    //
-    //     let item_start: usize = self.item_size * index;
-    //     RecordItem::from_raw(self.data[item_start..(item_start + self.item_size)].to_vec())
-    // }
-    // pub fn write_item(&mut self, index: usize, record_item: RecordItem) {
-    //     let item_data: Vec<u8> = record_item.move_to_bytes();
-    //     //protect
-    //     assert!(item_data.len() == self.item_size);
-    //     self.check_index_violent(index);
-    //
-    //     let item_start: usize = self.item_size * index;
-    //     self.data[item_start..(item_start + self.item_size)].copy_from_slice(&item_data);
-    // }
 }
