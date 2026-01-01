@@ -10,7 +10,7 @@ use file_system::FileManager;
 use lru_list::LruList;
 
 use crate::dbms::{
-    PAGE_NUM,
+    PAGE_NUM, PAGE_SIZE,
     resource::{PageType, ResId},
 };
 
@@ -19,16 +19,16 @@ use crate::dbms::{
 // 最初的做法中，没有Page这一层抽象，将dirty的控制交给cache system，导致封装不够优雅
 // 现在将带有dirty标记的Page返回,方便控制
 #[derive(Clone)]
-pub struct Page<const PAGE_SIZE: usize> {
-    pub data: [u8; 4096],
+pub struct Page {
+    pub data: [u8; PAGE_SIZE],
     dirty: bool,
 }
 
-impl<const PAGE_SIZE: usize> Page<PAGE_SIZE> {
+impl Page {
     pub fn new() -> Self {
         // initialize: fake cache
         Self {
-            data: [0u8; 4096],
+            data: [0u8; PAGE_SIZE],
             dirty: false,
         }
     }
@@ -44,7 +44,7 @@ impl<const PAGE_SIZE: usize> Page<PAGE_SIZE> {
 // TODO:
 // file system内部管理opened_file
 // ==================== Cache ======================
-pub struct CacheBuf<const PAGE_NUM: usize, const PAGE_SIZE: usize> {
+pub struct CacheBuf<const PAGE_NUM: usize> {
     // io
     file_sys: FileManager,
     opened_file: HashMap<String, File>,
@@ -52,20 +52,20 @@ pub struct CacheBuf<const PAGE_NUM: usize, const PAGE_SIZE: usize> {
     cache_map: HashMap<ResId, usize>,   // ResId -> cache page index
     reverse_map: HashMap<usize, ResId>, // cache id -> ResId
     // pages: [Page<PAGE_SIZE>; PAGE_NUM],
-    pages: Vec<Page<PAGE_SIZE>>,
+    pages: Vec<Page>,
     lru_list: LruList<PAGE_NUM>,
 }
 
-impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE> {
-    pub fn new() -> Self {
+impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
+    pub fn new(global_path: &str, base_path: &str) -> Self {
         CacheBuf {
             // io
-            file_sys: FileManager::new(),
+            file_sys: FileManager::new(global_path, base_path),
             opened_file: HashMap::new(),
             // cache
             cache_map: HashMap::new(),
             reverse_map: HashMap::new(),
-            pages: vec![Page::<PAGE_SIZE>::new(); PAGE_NUM],
+            pages: vec![Page::new(); PAGE_NUM],
             lru_list: LruList::<PAGE_NUM>::new(),
         }
     }
@@ -76,10 +76,11 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
         file_name: &str,
         page_id: usize,
         page_type: &PageType,
-    ) -> &mut Page<PAGE_SIZE> {
-        let res_id = ResId::new(page_type, file_name, page_id);
+        extra_info: &str,
+    ) -> &mut Page {
+        let res_id = ResId::new(page_type, file_name, page_id, extra_info);
 
-        let file_path = ResId::gen_file_path(file_name, page_type);
+        let file_path = ResId::gen_file_path(file_name, page_type, extra_info);
         // first: query if there is cache.
         // assume that the borrowd cache is dropped at once.
         match self.query_cache_index(&res_id) {
@@ -93,7 +94,10 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
                     // the key of opened_file is path, not base name
                     println!("file:");
                     println!("{}", file_path);
-                    let new_fd = self.file_sys.open_file(&file_name, page_type).unwrap();
+                    let new_fd = self
+                        .file_sys
+                        .open_file(&file_name, page_type, extra_info)
+                        .unwrap();
                     self.opened_file.insert(file_path.to_string(), new_fd);
                 }
 
@@ -118,15 +122,17 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
 
     // ================ Public Create ==================
     // pass
-    pub fn create_file(&mut self, file_name: &str, page_type: &PageType) {
+    pub fn create_file(&mut self, file_name: &str, page_type: &PageType, extra_info: &str) {
         // TODO:
         // detect error
-        self.file_sys.create_file(file_name, page_type).unwrap();
+        self.file_sys
+            .create_file(file_name, page_type, extra_info)
+            .unwrap();
     }
-    pub fn delete_file(&mut self, file_name: &str, page_type: &PageType) {
+    pub fn delete_file(&mut self, file_name: &str, page_type: &PageType, extra_info: &str) {
         // TODO:
         // detect error
-        self.file_sys.delete_file(file_name, page_type).unwrap();
+        self.file_sys.delete_file(file_name, page_type, extra_info);
     }
 
     // ================ Private function ===============
@@ -141,7 +147,7 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
     }
 
     // get cache by id
-    fn get_cache_resource(&mut self, cache_id: usize) -> &mut Page<PAGE_SIZE> {
+    fn get_cache_resource(&mut self, cache_id: usize) -> &mut Page {
         if cache_id >= PAGE_NUM {
             panic!("Invalid cache id {}, current max is {}", cache_id, PAGE_NUM);
         }
@@ -183,8 +189,6 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
 
             self.lru_list.lift_page(cache_id).unwrap();
         }
-        // load data, and clear the dirty signal
-        self.pages[cache_id].data = buffer;
         self.pages[cache_id].set_clean();
 
         // add new map item
@@ -201,15 +205,16 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
             .get(&cache_id)
             .expect("Fatal! Mismatch cache_map and reverse_map!");
 
-        let drop_page: &Page<PAGE_SIZE> = &self.pages[cache_id];
+        let drop_page: &Page = &self.pages[cache_id];
         if drop_page.dirty {
             let resid_parts = res_id.break_resid();
             let wb_file_type = resid_parts.0;
             let wb_file_name = resid_parts.1;
             let wb_page_id = resid_parts.2;
+            let wb_extra_info = resid_parts.3;
             let mut wb_fd = self
                 .file_sys
-                .open_file(&wb_file_name, &wb_file_type)
+                .open_file(&wb_file_name, &wb_file_type, &wb_extra_info)
                 .unwrap();
             self.file_sys
                 .write_page(&mut wb_fd, wb_page_id, &drop_page.data)
@@ -240,12 +245,12 @@ impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> CacheBuf<PAGE_NUM, PAGE_SIZE
 }
 
 // ============== write back ==========
-impl<const PAGE_NUM: usize, const PAGE_SIZE: usize> Drop for CacheBuf<PAGE_NUM, PAGE_SIZE> {
+impl<const PAGE_NUM: usize> Drop for CacheBuf<PAGE_NUM> {
     fn drop(&mut self) {
         // Vec<Page> doesn't implement "Copy", so cannot move directly
         // use reference instead
 
-        // INFO:
+        // TIP:
         // 如果使用for dirty_page in self.pages.iter().enumerate(),
         // 会导致所有权的引用问题（迭代的时候获得&mut self, 而下面self.write_back_page还需要）
         // 一个优雅的解决方法是：将迭代和write_back的时序分离开,这样就不会出现交错所有权引用的冲突
