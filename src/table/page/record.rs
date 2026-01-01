@@ -1,4 +1,7 @@
-use std::usize;
+use std::{
+    fmt::{Display, Formatter},
+    usize,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -48,10 +51,20 @@ impl ColumnType {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub enum ColumnValue {
     INT(i32),
     CAHR(String),
+}
+
+impl Display for ColumnValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::INT(x) => x.to_string(),
+            Self::CAHR(s) => s.to_string(),
+        };
+        write!(f, "{s}")
+    }
 }
 
 // TODO: Constraint
@@ -128,13 +141,12 @@ impl<'a> RecordItem<'a> {
                 Ok(ColumnValue::INT(int_val))
             }
             ColumnType::CHAR(_) => {
-                let str_val: String = str::from_utf8(
-                    self.item_data[target_offset..target_offset + target_size]
-                        .try_into()
-                        .unwrap(),
-                )
-                .unwrap()
-                .to_string();
+                let raw_bytes = &self.item_data[target_offset..target_offset + target_size];
+                let str_data = match raw_bytes.iter().position(|&x| x == 0u8) {
+                    Some(i) => &raw_bytes[..i],
+                    None => raw_bytes,
+                };
+                let str_val: String = str::from_utf8(str_data).unwrap().to_string();
                 Ok(ColumnValue::CAHR(str_val))
             }
         }
@@ -165,9 +177,11 @@ impl<'a> RecordItem<'a> {
                 if target_type != ColumnType::CHAR(target_size) {
                     return Err("Column type mismatch".to_string());
                 }
-                let str_bytes: &[u8] = s.as_bytes();
-                self.item_data[target_offset..target_offset + target_size]
-                    .copy_from_slice(str_bytes);
+                let dst_data = &mut self.item_data[target_offset..target_offset + target_size];
+                dst_data.fill(0);
+                let n = dst_data.len().min(s.len());
+                let src_data: &[u8] = s.as_bytes();
+                dst_data[..n].copy_from_slice(&src_data[..n]);
                 Ok(())
             }
         }

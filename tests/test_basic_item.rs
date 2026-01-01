@@ -4,7 +4,7 @@ use BananaDB::{
 };
 
 #[test]
-fn test_item() {
+fn test_basic_item() {
     let mut manager = DBMS::<4>::new();
     assert!(
         manager
