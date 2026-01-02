@@ -1,14 +1,10 @@
 // global下面存储顶层信息   现阶段假设文件为 ./global/map.json
 // base下存储不同的表
 
-use serde_json;
-use std::collections::HashMap;
-use std::fs::{self, remove_file};
-use std::fs::{OpenOptions, create_dir};
+use std::fs::{self, OpenOptions, remove_file};
 use std::io::{Read, Seek, Write};
 use std::path::Path;
 
-use crate::config::DATA_DIR;
 use crate::dbms::resource::PageType;
 use crate::dbms::resource::ResId;
 use crate::error_type::IOManagerError;

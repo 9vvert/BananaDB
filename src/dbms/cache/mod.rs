@@ -3,14 +3,13 @@
 mod file_system;
 mod lru_list;
 
-use bitvec::{order::Lsb0, vec::BitVec};
 use std::{collections::HashMap, fs::File};
 
 use file_system::FileManager;
 use lru_list::LruList;
 
 use crate::dbms::{
-    PAGE_NUM, PAGE_SIZE,
+    PAGE_SIZE,
     resource::{PageType, ResId},
 };
 
@@ -18,6 +17,8 @@ use crate::dbms::{
 // NOTE:
 // 最初的做法中，没有Page这一层抽象，将dirty的控制交给cache system，导致封装不够优雅
 // 现在将带有dirty标记的Page返回,方便控制
+pub type PageId = u32;
+
 #[derive(Clone)]
 pub struct Page {
     pub data: [u8; PAGE_SIZE],
@@ -190,6 +191,7 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
             self.lru_list.lift_page(cache_id).unwrap();
         }
         self.pages[cache_id].set_clean();
+        self.pages[cache_id].data = buffer;
 
         // add new map item
         // NOTE: first derive Clone for ResId, then clone it.
