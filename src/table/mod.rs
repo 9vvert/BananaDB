@@ -9,7 +9,7 @@ use crate::table::page::{
 
 // NOTE:
 // 将TableMetaData分成const和mut部分，其中const部分在创建表的过程中已经确定；而mut则可能随着表的使用而发生变化
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct TableMetaData {
     pub const_info: ConstTableMetadata,
     pub mut_info: MutTableMetadata,
@@ -30,7 +30,7 @@ impl TableMetaData {
         // TODO:
         // read meta data from global.json
         let mut col_offset_list: Vec<usize> = Vec::new();
-        let mut real_size: usize = 0;
+        let mut _real_size: usize = 0;
 
         let mut offset: usize = 0;
         // SOME: borrow here
@@ -38,7 +38,7 @@ impl TableMetaData {
             col_offset_list.push(offset);
             offset += col_type.size(); // define in record.rs
             // calculate the length of a item
-            real_size += col_type.size();
+            _real_size += col_type.size();
         }
         // check
         // assert_eq!(item_size, real_size);
@@ -66,7 +66,7 @@ impl TableMetaData {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct ConstTableMetadata {
     pub table_name: String,
     pub item_size: usize,          // size of each item
@@ -77,7 +77,7 @@ pub struct ConstTableMetadata {
     pub column_offset: Vec<usize>, // offset of each column
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct MutTableMetadata {
     pub data_page_count: usize,
     pub next_free_slot: RecordId,

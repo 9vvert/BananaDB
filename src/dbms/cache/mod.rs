@@ -3,14 +3,13 @@
 mod file_system;
 mod lru_list;
 
-use bitvec::{order::Lsb0, vec::BitVec};
 use std::{collections::HashMap, fs::File};
 
 use file_system::FileManager;
 use lru_list::LruList;
 
 use crate::dbms::{
-    PAGE_NUM, PAGE_SIZE,
+    PAGE_SIZE,
     resource::{PageType, ResId},
 };
 
@@ -190,6 +189,7 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
             self.lru_list.lift_page(cache_id).unwrap();
         }
         self.pages[cache_id].set_clean();
+        self.pages[cache_id].data = buffer;
 
         // add new map item
         // NOTE: first derive Clone for ResId, then clone it.
