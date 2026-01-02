@@ -17,6 +17,8 @@ use crate::dbms::{
 // NOTE:
 // 最初的做法中，没有Page这一层抽象，将dirty的控制交给cache system，导致封装不够优雅
 // 现在将带有dirty标记的Page返回,方便控制
+pub type PageId = u32;
+
 #[derive(Clone)]
 pub struct Page {
     pub data: [u8; PAGE_SIZE],

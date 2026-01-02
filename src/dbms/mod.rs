@@ -13,7 +13,7 @@ use std::{
 use crate::{
     config::DATA_DIR,
     dbms::cache::CacheBuf,
-    index::{BPlusTree, Bound},
+    index::{BPlusTree, node::Bound},
     table::{
         TableMetaData,
         page::{
@@ -26,7 +26,6 @@ use crate::{
 pub mod cache;
 pub mod resource;
 
-const PAGE_NUM: usize = 3;
 const PAGE_SIZE: usize = 4096;
 
 #[derive(Clone, Copy)]
@@ -324,6 +323,8 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
     pub fn delete_item(&mut self, name: &str, rid: RecordId) -> Result<(), String> {
         // check if the rid is out-of-range
         let mut index_updates: Vec<(usize, ColumnType, ColumnValue)> = Vec::new();
+        // TIP: item / index both referred CacheBuf.
+        // Using child-block to avoid conflict
         {
             let table_metadata = self.metadata_map.get_mut(name).unwrap();
             assert!(
@@ -355,6 +356,8 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             target_data_page.set_slot_free(item_id as usize);
         }
 
+        // NOTE:
+        // update B+tree
         for (col_idx, col_type, col_val) in index_updates {
             let mut tree = BPlusTree::new(&mut self.db_io, name, col_idx, col_type);
             tree.delete(col_val, rid)?;
@@ -435,6 +438,8 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         };
         self.with_item(name, rid, true, f)?;
 
+        // NOTE: 对于修改的item, 使用B+树更新
+        // TODO: 未测试修改main-key会不会导致错误
         if has_index {
             let mut tree = BPlusTree::new(&mut self.db_io, name, col_index, col_type);
             tree.delete(old_val, rid)?;

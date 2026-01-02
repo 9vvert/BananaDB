@@ -33,7 +33,7 @@ impl TableMetaData {
         let mut _real_size: usize = 0;
 
         let mut offset: usize = 0;
-        // SOME: borrow here
+        // TIP: borrow here
         for col_type in &column_type {
             col_offset_list.push(offset);
             offset += col_type.size(); // define in record.rs
