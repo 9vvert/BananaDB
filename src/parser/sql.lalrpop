@@ -1,0 +1,431 @@
+use crate::parser::ast::*;
+use crate::parser::error::ParserError;
+use crate::parser::lexer::Tok;
+
+grammar;
+
+extern {
+    type Location = usize;
+    type Error = ParserError;
+
+    enum Tok {
+        Comma => Tok::Comma,
+        Semi => Tok::Semi,
+        LParen => Tok::LParen,
+        RParen => Tok::RParen,
+        Dot => Tok::Dot,
+        Star => Tok::Star,
+        Eq => Tok::Eq,
+        Less => Tok::Less,
+        Greater => Tok::Greater,
+        LessEqual => Tok::LessEqual,
+        GreaterEqual => Tok::GreaterEqual,
+        NotEqual => Tok::NotEqual,
+
+        Identifier => Tok::Identifier(<String>),
+        Integer => Tok::Integer(<i64>),
+        Float => Tok::Float(<f64>),
+        String => Tok::String(<String>),
+        Null => Tok::Null,
+
+        Create => Tok::Create,
+        Database => Tok::Database,
+        Databases => Tok::Databases,
+        Drop => Tok::Drop,
+        Show => Tok::Show,
+        Use => Tok::Use,
+        Tables => Tok::Tables,
+        Indexes => Tok::Indexes,
+        Table => Tok::Table,
+        Desc => Tok::Desc,
+        Load => Tok::Load,
+        Data => Tok::Data,
+        Infile => Tok::Infile,
+        Into => Tok::Into,
+        Fields => Tok::Fields,
+        Terminated => Tok::Terminated,
+        By => Tok::By,
+        Insert => Tok::Insert,
+        Values => Tok::Values,
+        Delete => Tok::Delete,
+        From => Tok::From,
+        Where => Tok::Where,
+        Update => Tok::Update,
+        Set => Tok::Set,
+        Select => Tok::Select,
+        Group => Tok::Group,
+        Order => Tok::Order,
+        Limit => Tok::Limit,
+        Offset => Tok::Offset,
+        Alter => Tok::Alter,
+        Add => Tok::Add,
+        Index => Tok::Index,
+        Primary => Tok::Primary,
+        Key => Tok::Key,
+        Foreign => Tok::Foreign,
+        References => Tok::References,
+        Constraint => Tok::Constraint,
+        Unique => Tok::Unique,
+        Default => Tok::Default,
+        Count => Tok::Count,
+        Avg => Tok::Avg,
+        Max => Tok::Max,
+        Min => Tok::Min,
+        Sum => Tok::Sum,
+        Int => Tok::Int,
+        Varchar => Tok::Varchar,
+        FloatTy => Tok::FloatTy,
+        Like => Tok::Like,
+        In => Tok::In,
+        Is => Tok::Is,
+        Not => Tok::Not,
+        And => Tok::And,
+        Asc => Tok::Asc,
+    }
+}
+
+pub Program: Vec<Statement> = {
+    <s:Statement*> => s,
+};
+
+Statement: Statement = {
+    <s:DbStatement> Semi => s,
+    <s:TableStatement> Semi => s,
+    <s:AlterStatement> Semi => s,
+    Null Semi => Statement::Null,
+};
+
+DbStatement: Statement = {
+    Create Database <name:ident> => Statement::CreateDatabase { name },
+    Drop Database <name:ident> => Statement::DropDatabase { name },
+    Show Databases => Statement::ShowDatabases,
+    Use <name:ident> => Statement::UseDatabase { name },
+    Show Tables => Statement::ShowTables,
+    Show Indexes => Statement::ShowIndexes,
+};
+
+TableStatement: Statement = {
+    Create Table <name:ident> LParen <fields:FieldList> RParen =>
+        Statement::CreateTable { name, columns: fields.0, constraints: fields.1 },
+    Drop Table <name:ident> => Statement::DropTable { name },
+    Desc <name:ident> => Statement::DescribeTable { name },
+    Load Data Infile <path:string_lit> Into Table <table:ident> Fields Terminated By <delim:string_lit> =>
+        Statement::LoadData { path, table, delimiter: delim },
+    Insert Into <table:ident> Values <rows:ValueLists> =>
+        Statement::Insert { table, rows },
+    Delete From <table:ident> Where <cond:WhereAndClause> =>
+        Statement::Delete { table, selection: Some(cond) },
+    Delete From <table:ident> =>
+        Statement::Delete { table, selection: None },
+    Update <table:ident> Set <assigns:SetClause> Where <cond:WhereAndClause> =>
+        Statement::Update { table, assignments: assigns, selection: Some(cond) },
+    <sel:SelectTable> => Statement::Select(sel),
+};
+
+AlterStatement: Statement = {
+    Alter Table <table:ident> Add Index <name:ident> LParen <cols:Identifiers> RParen =>
+        Statement::AlterAddIndex { table, name: Some(name), columns: cols },
+    Alter Table <table:ident> Add Index LParen <cols:Identifiers> RParen =>
+        Statement::AlterAddIndex { table, name: None, columns: cols },
+    Alter Table <table:ident> Drop Index <name:ident> =>
+        Statement::AlterDropIndex { table, name },
+    Alter Table <table:ident> Drop Primary Key <name:ident> =>
+        Statement::AlterDropPrimaryKey { table, name: Some(name) },
+    Alter Table <table:ident> Drop Primary Key =>
+        Statement::AlterDropPrimaryKey { table, name: None },
+    Alter Table <table:ident> Drop Foreign Key <name:ident> =>
+        Statement::AlterDropForeignKey { table, name },
+    Alter Table <table:ident> Add Constraint <name:ident> Primary Key LParen <cols:Identifiers> RParen =>
+        Statement::AlterAddPrimaryKey { table, constraint: TableConstraint::PrimaryKey { name: Some(name), columns: cols } },
+    Alter Table <table:ident> Add Primary Key LParen <cols:Identifiers> RParen =>
+        Statement::AlterAddPrimaryKey { table, constraint: TableConstraint::PrimaryKey { name: None, columns: cols } },
+    Alter Table <table:ident> Add Constraint <name:ident> Foreign Key LParen <cols:Identifiers> RParen References <ref_table:ident> LParen <ref_cols:Identifiers> RParen =>
+        Statement::AlterAddForeignKey { table, constraint: TableConstraint::ForeignKey { name: Some(name), columns: cols, ref_table, ref_columns: ref_cols } },
+    Alter Table <table:ident> Add Foreign Key LParen <cols:Identifiers> RParen References <ref_table:ident> LParen <ref_cols:Identifiers> RParen =>
+        Statement::AlterAddForeignKey { table, constraint: TableConstraint::ForeignKey { name: None, columns: cols, ref_table, ref_columns: ref_cols } },
+    Alter Table <table:ident> Add Constraint <name:ident> Unique LParen <cols:Identifiers> RParen =>
+        Statement::AlterAddUnique { table, constraint: TableConstraint::Unique { name: Some(name), columns: cols } },
+    Alter Table <table:ident> Add Unique LParen <cols:Identifiers> RParen =>
+        Statement::AlterAddUnique { table, constraint: TableConstraint::Unique { name: None, columns: cols } },
+};
+
+SelectTable: Select = {
+    Select <projections:Selectors> From <from:Identifiers> <selection:WhereOpt> <group:GroupOpt> <order:OrderOpt> <limit:LimitOpt> =>
+        Select {
+            projections,
+            from,
+            r#where: selection,
+            group_by: group,
+            order_by: order,
+            limit,
+        },
+};
+
+WhereOpt: Option<Expr> = {
+    Where <c:WhereAndClause> => Some(c),
+    => None,
+};
+
+GroupOpt: Option<ColumnRef> = {
+    Group By <c:ColumnRef> => Some(c),
+    => None,
+};
+
+OrderOpt: Option<OrderBy> = {
+    Order By <c:ColumnRef> <dir:OrderDirOpt> => Some(OrderBy { column: c, asc: dir.unwrap_or(true) }),
+    => None,
+};
+
+OrderDirOpt: Option<bool> = {
+    Asc => Some(true),
+    Desc => Some(false),
+    => None,
+};
+
+LimitOpt: Option<LimitClause> = {
+    Limit <count:int_lit> Offset <offset:int_lit> => Some(LimitClause { count, offset: Some(offset) }),
+    Limit <count:int_lit> => Some(LimitClause { count, offset: None }),
+    => None,
+};
+
+Selectors: Vec<SelectItem> = {
+    Star => vec![SelectItem::Wildcard],
+    <list:SelectorList> => list,
+};
+
+SelectorList: Vec<SelectItem> = {
+    <head:Selector> <tail:SelectorTail> => {
+        let mut items = vec![head];
+        items.extend(tail);
+        items
+    }
+};
+
+SelectorTail: Vec<SelectItem> = {
+    Comma <next:Selector> <more:SelectorTail> => {
+        let mut items = vec![next];
+        items.extend(more);
+        items
+    },
+    => Vec::new(),
+};
+
+Selector: SelectItem = {
+    Count LParen Star RParen => SelectItem::CountAll,
+    Count LParen <col:ColumnRef> RParen => SelectItem::Aggregate { func: Aggregator::Count, column: col },
+    Avg LParen <col:ColumnRef> RParen => SelectItem::Aggregate { func: Aggregator::Avg, column: col },
+    Max LParen <col:ColumnRef> RParen => SelectItem::Aggregate { func: Aggregator::Max, column: col },
+    Min LParen <col:ColumnRef> RParen => SelectItem::Aggregate { func: Aggregator::Min, column: col },
+    Sum LParen <col:ColumnRef> RParen => SelectItem::Aggregate { func: Aggregator::Sum, column: col },
+    <col:ColumnRef> => SelectItem::Column(col),
+};
+
+ValueLists: Vec<Vec<Value>> = {
+    <head:ValueList> <tail:ValueListTail> => {
+        let mut rows = vec![head];
+        rows.extend(tail);
+        rows
+    }
+};
+
+ValueListTail: Vec<Vec<Value>> = {
+    Comma <next:ValueList> <more:ValueListTail> => {
+        let mut rows = vec![next];
+        rows.extend(more);
+        rows
+    },
+    => Vec::new(),
+};
+
+ValueList: Vec<Value> = {
+    LParen <vals:ValueItems> RParen => vals,
+};
+
+ValueItems: Vec<Value> = {
+    <head:Value> <tail:ValueItemsTail> => {
+        let mut vals = vec![head];
+        vals.extend(tail);
+        vals
+    }
+};
+
+ValueItemsTail: Vec<Value> = {
+    Comma <next:Value> <more:ValueItemsTail> => {
+        let mut vals = vec![next];
+        vals.extend(more);
+        vals
+    },
+    => Vec::new(),
+};
+
+SetClause: Vec<Assignment> = {
+    <head:SetItem> <tail:SetItemTail> => {
+        let mut assigns = vec![head];
+        assigns.extend(tail);
+        assigns
+    }
+};
+
+SetItemTail: Vec<Assignment> = {
+    Comma <next:SetItem> <more:SetItemTail> => {
+        let mut assigns = vec![next];
+        assigns.extend(more);
+        assigns
+    },
+    => Vec::new(),
+};
+
+SetItem: Assignment = {
+    <col:ident> Eq <val:Value> => Assignment { column: col, value: val },
+};
+
+WhereAndClause: Expr = {
+    <head:WhereClause> <tail:WhereClauseTail> => {
+        let mut exprs = vec![head];
+        exprs.extend(tail);
+        Expr::and_chain(exprs).unwrap()
+    }
+};
+
+WhereClauseTail: Vec<Expr> = {
+    And <next:WhereClause> <more:WhereClauseTail> => {
+        let mut exprs = vec![next];
+        exprs.extend(more);
+        exprs
+    },
+    => Vec::new(),
+};
+
+WhereClause: Expr = {
+    <col:ColumnRef> <op:Operator> <expr:Expression> =>
+        Expr::Binary { left: Box::new(Expr::Column(col)), op, right: Box::new(expr) },
+    <col:ColumnRef> <op:Operator> LParen <sel:SelectTable> RParen =>
+        Expr::SubqueryCompare { left: col, op, select: Box::new(sel) },
+    <col:ColumnRef> Is <not:NotOpt> Null =>
+        Expr::IsNull { expr: Box::new(Expr::Column(col)), not },
+    <col:ColumnRef> In <list:ValueList> =>
+        Expr::InList { expr: Box::new(Expr::Column(col)), list },
+    <col:ColumnRef> In LParen <sel:SelectTable> RParen =>
+        Expr::InSelect { expr: Box::new(Expr::Column(col)), select: Box::new(sel) },
+    <col:ColumnRef> Like <pat:string_lit> =>
+        Expr::Like { expr: Box::new(Expr::Column(col)), pattern: pat },
+};
+
+Expression: Expr = {
+    <v:Value> => Expr::Value(v),
+    <c:ColumnRef> => Expr::Column(c),
+};
+
+NotOpt: bool = {
+    Not => true,
+    => false,
+};
+
+Operator: BinaryOp = {
+    Eq => BinaryOp::Eq,
+    Less => BinaryOp::Lt,
+    LessEqual => BinaryOp::Le,
+    Greater => BinaryOp::Gt,
+    GreaterEqual => BinaryOp::Ge,
+    NotEqual => BinaryOp::Ne,
+};
+
+Value: Value = {
+    <n:int_lit> => Value::Int(n),
+    <f:float_lit> => Value::Float(f),
+    <s:string_lit> => Value::String(s),
+    Null => Value::Null,
+};
+
+ColumnRef: ColumnRef = {
+    <table:ident> Dot <col:ident> => ColumnRef { table: Some(table), column: col },
+    <col:ident> => ColumnRef { table: None, column: col },
+};
+
+Identifiers: Vec<String> = {
+    <head:ident> <tail:IdentifierTail> => {
+        let mut ids = vec![head];
+        ids.extend(tail);
+        ids
+    }
+};
+
+IdentifierTail: Vec<String> = {
+    Comma <next:ident> <more:IdentifierTail> => {
+        let mut ids = vec![next];
+        ids.extend(more);
+        ids
+    },
+    => Vec::new(),
+};
+
+FieldList: (Vec<ColumnDef>, Vec<TableConstraint>) = {
+    <head:Field> <tail:FieldTail> => {
+        let mut columns = Vec::new();
+        let mut constraints = Vec::new();
+
+        if let Some(col) = head.0 { columns.push(col); }
+        if let Some(con) = head.1 { constraints.push(con); }
+
+        for item in tail {
+            if let Some(col) = item.0 { columns.push(col); }
+            if let Some(con) = item.1 { constraints.push(con); }
+        }
+
+        (columns, constraints)
+    }
+};
+
+FieldTail: Vec<(Option<ColumnDef>, Option<TableConstraint>)> = {
+    Comma <next:Field> <more:FieldTail> => {
+        let mut items = vec![next];
+        items.extend(more);
+        items
+    },
+    => Vec::new(),
+};
+
+Field: (Option<ColumnDef>, Option<TableConstraint>) = {
+    <name:ident> <ty:TypeSpec> <not_null:NotNullOpt> <default:DefaultOpt> =>
+        (Some(ColumnDef { name, data_type: ty, not_null, default }), None),
+    Primary Key <opt_name:ident> LParen <cols:Identifiers> RParen =>
+        (None, Some(TableConstraint::PrimaryKey { name: Some(opt_name), columns: cols })),
+    Primary Key LParen <cols:Identifiers> RParen =>
+        (None, Some(TableConstraint::PrimaryKey { name: None, columns: cols })),
+    Foreign Key <opt_name:ident> LParen <cols:Identifiers> RParen References <ref_table:ident> LParen <ref_cols:Identifiers> RParen =>
+        (None, Some(TableConstraint::ForeignKey { name: Some(opt_name), columns: cols, ref_table, ref_columns: ref_cols })),
+    Foreign Key LParen <cols:Identifiers> RParen References <ref_table:ident> LParen <ref_cols:Identifiers> RParen =>
+        (None, Some(TableConstraint::ForeignKey { name: None, columns: cols, ref_table, ref_columns: ref_cols })),
+};
+
+NotNullOpt: bool = {
+    Not Null => true,
+    => false,
+};
+
+DefaultOpt: Option<Value> = {
+    Default <v:Value> => Some(v),
+    => None,
+};
+
+TypeSpec: ColumnTypeDef = {
+    Int => ColumnTypeDef::Int,
+    Varchar LParen <len:int_lit> RParen => ColumnTypeDef::Varchar(len.max(0) as usize),
+    FloatTy => ColumnTypeDef::Float,
+};
+
+ident: String = {
+    <name:Identifier> => name,
+};
+
+int_lit: i64 = {
+    <n:Integer> => n,
+};
+
+float_lit: f64 = {
+    <f:Float> => f,
+};
+
+string_lit: String = {
+    <s:String> => s,
+};
