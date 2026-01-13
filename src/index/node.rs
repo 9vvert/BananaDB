@@ -194,7 +194,7 @@ impl<'a> LeafNode<'a> {
         }
     }
     pub fn node_type(&self) -> NodeType {
-        NodeType::Internal
+        NodeType::Leaf
     }
     pub fn key_count(&self) -> usize {
         u32::from_le_bytes(self.data[4..8].try_into().unwrap()) as usize
