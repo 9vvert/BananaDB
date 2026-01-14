@@ -692,6 +692,67 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         Ok(rows)
     }
 
+    pub fn scan_table_all(&mut self, name: &str) -> Result<Vec<Vec<ColumnValue>>, String> {
+        let metadata = match self.metadata_map.get(name) {
+            Some(m) => m.clone(),
+            None => return Err("Table not found".to_string()),
+        };
+
+        let mut rows = Vec::new();
+        for page_id in 0..metadata.mut_info.data_page_count {
+            let page = self
+                .db_io
+                .get_page(name, page_id, &resource::PageType::TABLE, "");
+            let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
+            for slot in 0..metadata.const_info.page_item_capacity {
+                if !table_page.check_slot_stat(slot) {
+                    continue;
+                }
+                let item = table_page.get_item(slot);
+                let mut row = Vec::with_capacity(metadata.const_info.column_count);
+                for col_idx in 0..metadata.const_info.column_count {
+                    row.push(item.get_column_val(col_idx)?);
+                }
+                rows.push(row);
+            }
+        }
+
+        Ok(rows)
+    }
+
+    pub fn scan_table_rows(
+        &mut self,
+        name: &str,
+    ) -> Result<Vec<(RecordId, Vec<ColumnValue>)>, String> {
+        let metadata = match self.metadata_map.get(name) {
+            Some(m) => m.clone(),
+            None => return Err("Table not found".to_string()),
+        };
+
+        let mut rows = Vec::new();
+        for page_id in 0..metadata.mut_info.data_page_count {
+            let page = self
+                .db_io
+                .get_page(name, page_id, &resource::PageType::TABLE, "");
+            let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
+            for slot in 0..metadata.const_info.page_item_capacity {
+                if !table_page.check_slot_stat(slot) {
+                    continue;
+                }
+                let item = table_page.get_item(slot);
+                let mut row = Vec::with_capacity(metadata.const_info.column_count);
+                for col_idx in 0..metadata.const_info.column_count {
+                    row.push(item.get_column_val(col_idx)?);
+                }
+                let rid_val =
+                    (page_id * metadata.const_info.page_item_capacity + slot) as u32;
+                rows.push((RecordId(rid_val), row));
+            }
+        }
+
+        Ok(rows)
+    }
+
     pub fn show_database(&self) {
         println!("DATABASES");
         for db in self.db_map.keys() {

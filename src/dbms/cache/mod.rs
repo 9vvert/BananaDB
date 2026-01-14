@@ -42,8 +42,6 @@ impl Page {
     }
 }
 
-// TODO:
-// file system内部管理opened_file
 // ==================== Cache ======================
 pub struct CacheBuf<const PAGE_NUM: usize> {
     // io
@@ -93,8 +91,9 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
                 if !self.opened_file.contains_key(&file_path) {
                     // NOTE:
                     // the key of opened_file is path, not base name
-                    println!("file:");
-                    println!("{}", file_path);
+
+                    // println!("file:");
+                    // println!("{}", file_path);
                     let new_fd = self
                         .file_sys
                         .open_file(&file_name, page_type, extra_info)
