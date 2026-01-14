@@ -815,14 +815,46 @@ impl<'a> ExecutionContext<'a> {
         name: Option<String>,
         columns: Vec<String>,
     ) -> Result<(), String> {
-        // TODO:
-        println!("TODO: alter table {table} add index {name:?} on {columns:?}");
+        if columns.is_empty() {
+            return Err("No column specified for index".to_string());
+        }
+        let meta = match self.dbms.metadata_map.get(&table) {
+            Some(m) => m.clone(),
+            None => return Err("Table doesn't exist".to_string()),
+        };
+        let col_idx = self.find_col_index(&meta, &columns[0])?;
+
+        if meta.mut_info.column_index.contains(&col_idx) {
+            return Ok(());
+        }
+
+        if let Err(_e) = self.dbms.create_index(&table, col_idx) {
+            println!("!ERROR");
+            println!("index");
+            return Ok(());
+        }
         Ok(())
     }
 
     fn alter_drop_index(&mut self, table: String, name: String) -> Result<(), String> {
-        // TODO:
-        println!("TODO: alter table {table} drop index {name}");
+        let meta = match self.dbms.metadata_map.get(&table) {
+            Some(m) => m.clone(),
+            None => return Err("Table doesn't exist".to_string()),
+        };
+        let col_idx = match meta.mut_info.column_index.first() {
+            Some(idx) => *idx,
+            None => {
+                println!("!ERROR");
+                println!("index");
+                return Ok(());
+            }
+        };
+
+        if let Err(_e) = self.dbms.delete_index(&table, col_idx) {
+            println!("!ERROR");
+            println!("index");
+            return Ok(());
+        }
         Ok(())
     }
 

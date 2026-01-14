@@ -283,10 +283,6 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             return Err(format!("Index on that column doesn't exist"));
         }
 
-        // extra info: column index
-        let extra_info = &index_of_col.to_string();
-        self.db_io
-            .delete_file(name, &resource::PageType::INDEX, extra_info);
         table_metadata
             .mut_info
             .column_index
@@ -817,7 +813,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
                     );
                 }
 
+                let mut printed_extra = false;
                 if m.const_info.column_constraint.len() > 0 {
+                    printed_extra = true;
                     println!("");
                     for c in &m.const_info.column_constraint {
                         match c {
@@ -858,8 +856,25 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
                                 );
                             }
                             TableConstraint::Unique { name, columns } => {
-                                println!("TODO: Unique key");
+                                let mut clist = "".to_string();
+                                for cc in columns {
+                                    if clist != "" {
+                                        clist = clist + ", ";
+                                    }
+                                    clist = clist + &cc;
+                                }
+                                println!("UNIQUE ({});", clist)
                             }
+                        }
+                    }
+                }
+                if m.mut_info.column_index.len() > 0 {
+                    if !printed_extra {
+                        println!("");
+                    }
+                    for idx in &m.mut_info.column_index {
+                        if *idx < m.const_info.column_name.len() {
+                            println!("INDEX ({});", m.const_info.column_name[*idx]);
                         }
                     }
                 }
