@@ -1,0 +1,10 @@
+-- @Name: multi-join
+-- @Depends: optional
+-- @Flags: mj
+-- @Description: Join multiple tables
+-- @Score: 2
+
+USE DATASET;
+
+-- Check 3 tables join (3000 * 25 * 5)
+SELECT SUPPLIER.S_NAME, NATION.N_NAME, REGION.R_NAME FROM SUPPLIER, NATION, REGION WHERE SUPPLIER.S_NATIONKEY = NATION.N_NATIONKEY  AND NATION.N_REGIONKEY = REGION.R_REGIONKEY AND REGION.R_NAME = 'AFRICA';

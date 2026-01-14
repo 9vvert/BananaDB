@@ -204,7 +204,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             item_size += col_type.size();
         }
         // crate file, no extra info
-        self.db_io.create_file(name, &resource::PageType::TABLE, "");
+        let table_path = self.curr_db.clone() + "/" + name;
+        self.db_io
+            .create_file(&table_path, &resource::PageType::TABLE, "");
         let new_table_metadata = TableMetaData::new(
             name,
             0,             // data page count: 0 at start
@@ -248,8 +250,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
 
             // create index
             let extra_info = &index_of_col.to_string();
+            let index_path = self.curr_db.clone() + "/" + name;
             self.db_io
-                .create_file(name, &resource::PageType::INDEX, extra_info);
+                .create_file(&index_path, &resource::PageType::INDEX, extra_info);
             table_metadata.mut_info.column_index.push(index_of_col);
         }
         self.update_meta_json();
@@ -264,7 +267,10 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             return Err(format!("Table {} doesn't exist.", name));
         }
         // crate file, no extra info
-        self.db_io.delete_file(name, &resource::PageType::TABLE, "");
+
+        let table_path = self.curr_db.clone() + "/" + name;
+        self.db_io
+            .delete_file(&table_path, &resource::PageType::TABLE, "");
         self.metadata_map.remove(name);
         self.update_meta_json();
         return Ok(());
@@ -282,6 +288,10 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         if !table_metadata.mut_info.column_index.contains(&index_of_col) {
             return Err(format!("Index on that column doesn't exist"));
         }
+
+        let index_path = self.curr_db.clone() + "/" + name;
+        self.db_io
+            .delete_file(&index_path, &resource::PageType::TABLE, "");
 
         table_metadata
             .mut_info
@@ -301,9 +311,11 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         let mut pending: Vec<(ColumnValue, RecordId)> = Vec::new();
 
         for page_id in 0..metadata.mut_info.data_page_count {
+            let table_path = self.curr_db.clone() + "/" + name;
+
             let page = self
                 .db_io
-                .get_page(name, page_id, &resource::PageType::TABLE, "");
+                .get_page(&table_path, page_id, &resource::PageType::TABLE, "");
             let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
             for slot in 0..page_capacity {
                 if !table_page.check_slot_stat(slot) {
@@ -336,9 +348,11 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             // if no free space, then allocate new page
             if table_metadata.mut_info.next_free_slot == RecordId::NIL {
                 let new_page_id = table_metadata.mut_info.data_page_count;
+                let table_path = self.curr_db.clone() + "/" + name;
+
                 let new_page =
                     self.db_io
-                        .get_page(name, new_page_id, &resource::PageType::TABLE, "");
+                        .get_page(&table_path, new_page_id, &resource::PageType::TABLE, "");
                 // always set new page as dirty
                 new_page.set_dirty();
 
@@ -378,9 +392,13 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             let item_id = rid_value % table_metadata.const_info.page_item_capacity as u32;
 
             // get the page with free slot, and set it as dirty
-            let page_with_free_slot =
-                self.db_io
-                    .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+            let table_path = self.curr_db.clone() + "/" + name;
+            let page_with_free_slot = self.db_io.get_page(
+                &table_path,
+                page_id as usize,
+                &resource::PageType::TABLE,
+                "",
+            );
             page_with_free_slot.set_dirty();
 
             let data_page_with_free_slot =
@@ -427,9 +445,14 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             let rid_value: u32 = rid.get();
             let page_id = rid_value / table_metadata.const_info.page_item_capacity as u32;
             let item_id = rid_value % table_metadata.const_info.page_item_capacity as u32;
-            let target_page =
-                self.db_io
-                    .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+            let table_path = self.curr_db.clone() + "/" + name;
+
+            let target_page = self.db_io.get_page(
+                &table_path,
+                page_id as usize,
+                &resource::PageType::TABLE,
+                "",
+            );
             target_page.set_dirty();
 
             let target_data_page =
@@ -554,9 +577,14 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         let page_id = rid_value / table_metadata.const_info.page_item_capacity as u32;
         let item_id = rid_value % table_metadata.const_info.page_item_capacity as u32;
 
-        let target_page =
-            self.db_io
-                .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+        let table_path = self.curr_db.clone() + "/" + name;
+
+        let target_page = self.db_io.get_page(
+            &table_path,
+            page_id as usize,
+            &resource::PageType::TABLE,
+            "",
+        );
 
         if set_dirty {
             target_page.set_dirty();
@@ -604,9 +632,11 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         let mut result = Vec::new();
 
         for page_id in 0..metadata.mut_info.data_page_count {
+            let table_path = self.curr_db.clone() + "/" + name;
+
             let page = self
                 .db_io
-                .get_page(name, page_id, &resource::PageType::TABLE, "");
+                .get_page(&table_path, page_id, &resource::PageType::TABLE, "");
             let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
             for slot in 0..metadata.const_info.page_item_capacity {
                 if !table_page.check_slot_stat(slot) {
@@ -700,9 +730,11 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
 
         let mut rows = Vec::new();
         for page_id in 0..metadata.mut_info.data_page_count {
+            let table_path = self.curr_db.clone() + "/" + name;
+
             let page = self
                 .db_io
-                .get_page(name, page_id, &resource::PageType::TABLE, "");
+                .get_page(&table_path, page_id, &resource::PageType::TABLE, "");
             let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
             for slot in 0..metadata.const_info.page_item_capacity {
                 if !table_page.check_slot_stat(slot) {
@@ -731,9 +763,11 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
 
         let mut rows = Vec::new();
         for page_id in 0..metadata.mut_info.data_page_count {
+            let table_path = self.curr_db.clone() + "/" + name;
+
             let page = self
                 .db_io
-                .get_page(name, page_id, &resource::PageType::TABLE, "");
+                .get_page(&table_path, page_id, &resource::PageType::TABLE, "");
             let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
             for slot in 0..metadata.const_info.page_item_capacity {
                 if !table_page.check_slot_stat(slot) {
@@ -744,8 +778,7 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
                 for col_idx in 0..metadata.const_info.column_count {
                     row.push(item.get_column_val(col_idx)?);
                 }
-                let rid_val =
-                    (page_id * metadata.const_info.page_item_capacity + slot) as u32;
+                let rid_val = (page_id * metadata.const_info.page_item_capacity + slot) as u32;
                 rows.push((RecordId(rid_val), row));
             }
         }
@@ -937,9 +970,14 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         let table_metadata = self.metadata_map.get(name).unwrap();
         let page_capacity = table_metadata.const_info.page_item_capacity;
 
-        let target_page =
-            self.db_io
-                .get_page(name, page_id as usize, &resource::PageType::TABLE, "");
+        let table_path = self.curr_db.clone() + "/" + name;
+
+        let target_page = self.db_io.get_page(
+            &table_path,
+            page_id as usize,
+            &resource::PageType::TABLE,
+            "",
+        );
 
         // lazy delete
         let target_data_page =

@@ -97,7 +97,7 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
                     let new_fd = self
                         .file_sys
                         .open_file(&file_name, page_type, extra_info)
-                        .unwrap();
+                        .expect(&format!("filename: {} not found", &file_name));
                     self.opened_file.insert(file_path.to_string(), new_fd);
                 }
 
