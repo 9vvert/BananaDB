@@ -88,6 +88,11 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
                 let sb = std::str::from_utf8(b).unwrap().trim_end_matches('\0');
                 sa.cmp(sb)
             }
+            ColumnType::FLOAT => {
+                let va = f64::from_le_bytes(a[..8].try_into().unwrap());
+                let vb = f64::from_le_bytes(b[..8].try_into().unwrap());
+                va.partial_cmp(&vb).unwrap_or(Ordering::Equal)
+            }
         }
     }
 
@@ -101,6 +106,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
                 buf[..copy_len].copy_from_slice(&s.as_bytes()[..copy_len]);
                 Ok(buf)
             }
+            (ColumnValue::FLOAT(x), ColumnType::FLOAT) => Ok(x.to_le_bytes().to_vec()),
             _ => Err("Column type mismatch for index key".to_string()),
         }
     }

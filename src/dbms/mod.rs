@@ -1,11 +1,13 @@
+use clap::builder::Str;
 // NOTE:
 // dmbs的抽象层级：
-// create table/index, insert item, delete item
+// reate table/index, insert item, delete item
 use colored::Colorize;
 use hex::ToHex;
 use std::{
     collections::HashMap,
-    fs::{File, OpenOptions, read_to_string},
+    fs::{self, File, OpenOptions, read_to_string},
+    hash::Hash,
     io::Write,
     path::Path,
 };
@@ -14,6 +16,7 @@ use crate::{
     config::DATA_DIR,
     dbms::cache::CacheBuf,
     index::{BPlusTree, node::Bound},
+    parser::ast::{TableConstraint, Value},
     table::{
         TableMetaData,
         page::{
@@ -45,9 +48,12 @@ pub struct RecordItemGuard<'a> {
 
 pub struct DBMS<const PAGE_NUM: usize> {
     pub db_io: CacheBuf<PAGE_NUM>,
-    metadata_map: HashMap<String, TableMetaData>, // record  the meta info of a table
-    global_path: String,
-    base_path: String,
+    curr_db: String,                 // name of the current database
+    db_map: HashMap<String, String>, // database usage
+    pub metadata_map: HashMap<String, TableMetaData>,
+    // metadata_map: HashMap<String, TableMetaData>, // record  the meta info of a table
+    pub global_path: String,
+    pub base_path: String,
 }
 
 impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
@@ -58,42 +64,99 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         std::fs::create_dir_all(DATA_DIR.to_string() + "/base")
             .expect("Error: cannot create directory:  base");
         // global metactl.json
-        let map_path = DATA_DIR.to_string() + "/global/metactl.json";
+        let map_path = DATA_DIR.to_string() + "/global/@database_map.json";
         if !Path::new(&map_path).exists() {
             let mut file = File::create(map_path).unwrap();
             file.write_all(b"{}").unwrap();
         }
 
-        let metadata = serde_json::from_str(
-            &read_to_string(DATA_DIR.to_string() + "/global/metactl.json").unwrap(),
+        let db_map = serde_json::from_str(
+            &read_to_string(DATA_DIR.to_string() + "/global/@database_map.json").unwrap(),
         )
-        .expect("metactl.json file format incorrect!");
+        .expect("@database_map.json file format incorrect!");
 
         let global_path = DATA_DIR.to_string() + "/global/";
         let base_path = DATA_DIR.to_string() + "/base/";
 
         DBMS {
             db_io: CacheBuf::new(&global_path, &base_path),
-            metadata_map: metadata,
+            curr_db: "".to_string(),
+            db_map: db_map,
+            metadata_map: HashMap::new(),
             global_path: global_path,
             base_path: base_path,
             //
         }
     }
+    pub fn load_database(&mut self, db_name: &str) {
+        if !self.db_map.contains_key(db_name) {
+            println!("Database {} doesn't exist!", db_name);
+            return;
+        }
+        self.curr_db = db_name.to_string();
+        let metajson_path = self.global_path.clone() + db_name + ".json";
+
+        self.metadata_map = serde_json::from_str(&read_to_string(metajson_path).unwrap())
+            .expect("@database_map.json file format incorrect!");
+        for (_name, meta) in self.metadata_map.iter_mut() {
+            let col_len = meta.const_info.column_type.len();
+            if meta.const_info.column_not_null.len() != col_len {
+                meta.const_info.column_not_null = vec![false; col_len];
+            }
+        }
+    }
+    pub fn add_database(&mut self, db_name: &str) {
+        if self.db_map.contains_key(db_name) {
+            println!("Database {} has already existed!", db_name);
+            return;
+        }
+
+        self.db_map.insert(db_name.to_string(), db_name.to_string());
+        self.update_db_json();
+        // create database table_meta file
+        let metajson_path = self.global_path.clone() + db_name + ".json";
+        let mut file = File::create(metajson_path).unwrap();
+        file.write_all(b"{}").unwrap();
+    }
+    pub fn del_database(&mut self, db_name: &str) {
+        if !self.db_map.contains_key(db_name) {
+            println!("Database {} doesn't exist!", db_name);
+            return;
+        }
+
+        self.db_map.remove(db_name);
+        self.update_db_json();
+        //delete table_meta file
+        let metajson_path = self.global_path.clone() + db_name + ".json";
+        fs::remove_file(metajson_path).unwrap();
+    }
     // update global/metactl.json
-    fn update_meta_json(&self, metactl_data: &HashMap<String, TableMetaData>) {
-        let metajson_path = self.global_path.clone() + "metactl.json";
+    fn update_db_json(&self) {
+        let db_map_path = self.global_path.clone() + "@database_map.json";
+        let mut db_map_file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(db_map_path)
+            .expect("Cannot open @database_map.json for writing!");
+        let json_str = serde_json::to_string_pretty(&self.db_map)
+            .expect("Cannot convert current map to string.");
+        db_map_file
+            .write_all(json_str.as_bytes())
+            .expect("Failed in writing to @database_map.json!");
+    }
+
+    fn update_meta_json(&self) {
+        let metajson_path = self.global_path.clone() + &self.curr_db + ".json";
         let mut metajson_file = OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(metajson_path)
-            .expect("Cannot open metactl.json for writing!");
-        let json_str = serde_json::to_string_pretty(metactl_data)
+            .open(metajson_path.clone())
+            .expect(&format!("Cannot open {} for writing!", metajson_path));
+        let json_str = serde_json::to_string_pretty(&self.metadata_map)
             .expect("Cannot convert current map to string.");
         metajson_file
             .write_all(json_str.as_bytes())
             .expect("Failed in writing to TableMap.json!");
-        println!("{}", json_str);
     }
 
     pub fn create_table(
@@ -102,9 +165,33 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         column_type: Vec<&ColumnType>,
         column_name: Vec<&str>,
     ) -> Result<(), String> {
+        let column_not_null = vec![true; column_type.len()];
+        let column_default = vec![None; column_type.len()];
+        self.create_table_with_constraint(
+            name,
+            column_type,
+            column_name,
+            column_not_null,
+            column_default,
+            Vec::new(),
+        )
+    }
+
+    pub fn create_table_with_constraint(
+        &mut self,
+        name: &str,
+        column_type: Vec<&ColumnType>,
+        column_name: Vec<&str>,
+        column_not_null: Vec<bool>,
+        column_default: Vec<Option<Value>>,
+        column_constraint: Vec<TableConstraint>,
+    ) -> Result<(), String> {
         // if file already exist, then report an error
         if self.metadata_map.contains_key(name) {
             return Err(format!("Table {} already exist.", name));
+        }
+        if column_not_null.len() != column_type.len() {
+            return Err("Column NOT NULL constraint length mismatch".to_string());
         }
         // calculate the item size
         // NOTE: 在这里需要加上末尾的辅助信息大小
@@ -122,11 +209,14 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             column_type.len(),
             column_name,
             column_type,
+            column_not_null,
             Vec::new(),
+            column_default,
+            column_constraint,
         );
         self.metadata_map
             .insert(name.to_string(), new_table_metadata);
-        self.update_meta_json(&self.metadata_map);
+        self.update_meta_json();
         return Ok(());
     }
 
@@ -158,7 +248,7 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
                 .create_file(name, &resource::PageType::INDEX, extra_info);
             table_metadata.mut_info.column_index.push(index_of_col);
         }
-        self.update_meta_json(&self.metadata_map);
+        self.update_meta_json();
         // build index using existing data
         self.rebuild_index(name, index_of_col)?;
         return Ok(());
@@ -172,7 +262,7 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         // crate file, no extra info
         self.db_io.delete_file(name, &resource::PageType::TABLE, "");
         self.metadata_map.remove(name);
-        self.update_meta_json(&self.metadata_map);
+        self.update_meta_json();
         return Ok(());
     }
 
@@ -197,7 +287,7 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             .mut_info
             .column_index
             .retain(|idx| *idx != index_of_col);
-        self.update_meta_json(&self.metadata_map);
+        self.update_meta_json();
         return Ok(());
     }
 
@@ -439,7 +529,6 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         self.with_item(name, rid, true, f)?;
 
         // NOTE: 对于修改的item, 使用B+树更新
-        // TODO: 未测试修改main-key会不会导致错误
         if has_index {
             let mut tree = BPlusTree::new(&mut self.db_io, name, col_index, col_type);
             tree.delete(old_val, rid)?;
@@ -483,6 +572,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         let ord = match (lhs, rhs) {
             (ColumnValue::INT(a), ColumnValue::INT(b)) => a.cmp(b),
             (ColumnValue::CAHR(a), ColumnValue::CAHR(b)) => a.cmp(b),
+            (ColumnValue::FLOAT(a), ColumnValue::FLOAT(b)) => a
+                .partial_cmp(b)
+                .ok_or_else(|| "Invalid float compare".to_string())?,
             _ => return Err("Column type mismatch".to_string()),
         };
         let result = match op {
@@ -598,6 +690,128 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             rows.push(self.read_item_all(name, rid)?);
         }
         Ok(rows)
+    }
+
+    pub fn show_database(&self) {
+        println!("DATABASES");
+        for db in self.db_map.keys() {
+            println!("{}", db);
+        }
+    }
+
+    pub fn show_table(&self) {
+        println!("TABLES");
+        for table in self.metadata_map.keys() {
+            println!("{}", table)
+        }
+    }
+
+    pub fn desc_table(&self, name: &str) {
+        match self.metadata_map.get(name) {
+            Some(m) => {
+                println!("Field,Type,Null,Default");
+                for i in 0..m.const_info.column_count {
+                    let col_name = m.const_info.column_name[i].clone();
+                    let col_type = match m.const_info.column_type[i] {
+                        ColumnType::INT => "INT",
+                        ColumnType::FLOAT => "FLOAT",
+                        ColumnType::CHAR(x) => &format!("VARCHAR({})", x).to_string(),
+                    };
+                    let mut can_be_null = match m.const_info.column_not_null[i] {
+                        true => "NO",
+                        false => "YES",
+                    };
+
+                    if m.const_info.column_constraint.len() > 0 {
+                        for c in &m.const_info.column_constraint {
+                            match c {
+                                // NOTE: 特殊判定：主键非空
+                                TableConstraint::PrimaryKey { name, columns } => {
+                                    if columns.contains(&col_name) {
+                                        can_be_null = "NO"
+                                    }
+                                }
+                                TableConstraint::ForeignKey {
+                                    name,
+                                    columns,
+                                    ref_table,
+                                    ref_columns,
+                                } => {}
+                                TableConstraint::Unique { name, columns } => {}
+                            }
+                        }
+                    }
+
+                    let column_default = match m.const_info.column_default[i].clone() {
+                        None => "NULL".to_string(),
+                        Some(y) => y.to_str(),
+                    };
+                    println!(
+                        "{},{},{},{}",
+                        col_name, col_type, can_be_null, column_default
+                    );
+                }
+
+                if m.const_info.column_constraint.len() > 0 {
+                    println!("");
+                    for c in &m.const_info.column_constraint {
+                        match c {
+                            TableConstraint::PrimaryKey { name, columns } => {
+                                let mut clist = "".to_string();
+                                for cc in columns {
+                                    if clist != "" {
+                                        clist = clist + ", ";
+                                    }
+                                    clist = clist + &cc;
+                                }
+                                println!("PRIMARY KEY ({});", clist)
+                            }
+                            TableConstraint::ForeignKey {
+                                name,
+                                columns,
+                                ref_table,
+                                ref_columns,
+                            } => {
+                                let mut clist = "".to_string();
+                                for cc in columns {
+                                    if clist != "" {
+                                        clist = clist + ", ";
+                                    }
+                                    clist = clist + &cc;
+                                }
+                                let mut rlist = "".to_string();
+                                for rc in ref_columns {
+                                    if rlist != "" {
+                                        rlist = rlist + ", ";
+                                    }
+                                    rlist = rlist + &rc;
+                                }
+
+                                println!(
+                                    "FOREIGN KEY ({}) REFERENCES {}({});",
+                                    clist, ref_table, rlist
+                                );
+                            }
+                            TableConstraint::Unique { name, columns } => {
+                                println!("TODO: Unique key");
+                            }
+                        }
+                    }
+                }
+            }
+            None => {
+                println!("Table {} doesn't exist!", name);
+                return;
+            }
+        };
+
+        //         for meta_data in self.metadata_map.values() {
+        //             println!("{},{},{},{}", meta_data.const_info.column_name, meta_data.const_info.column_type, meta_data.const_info.column_not_null)
+        //
+        //         }
+        // a,INT,NO,NULL
+        // b,VARCHAR(16),NO,NULL
+        // c,FLOAT,NO,NULL
     }
 
     // DEBUG:

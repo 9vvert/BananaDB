@@ -1,9 +1,22 @@
+use std::i32;
+
+use clap::builder::Str;
+use serde::{Deserialize, Serialize};
+
+use crate::table::page::record::ColumnType;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    CreateDatabase { name: String },
-    DropDatabase { name: String },
+    CreateDatabase {
+        name: String,
+    },
+    DropDatabase {
+        name: String,
+    },
     ShowDatabases,
-    UseDatabase { name: String },
+    UseDatabase {
+        name: String,
+    },
     ShowTables,
     ShowIndexes,
     CreateTable {
@@ -11,8 +24,12 @@ pub enum Statement {
         columns: Vec<ColumnDef>,
         constraints: Vec<TableConstraint>,
     },
-    DropTable { name: String },
-    DescribeTable { name: String },
+    DropTable {
+        name: String,
+    },
+    DescribeTable {
+        name: String,
+    },
     LoadData {
         path: String,
         table: String,
@@ -79,7 +96,7 @@ pub enum ColumnTypeDef {
     Float,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TableConstraint {
     PrimaryKey {
         name: Option<String>,
@@ -117,10 +134,7 @@ pub struct Select {
 pub enum SelectItem {
     Wildcard,
     Column(ColumnRef),
-    Aggregate {
-        func: Aggregator,
-        column: ColumnRef,
-    },
+    Aggregate { func: Aggregator, column: ColumnRef },
     CountAll,
 }
 
@@ -194,12 +208,60 @@ pub enum BinaryOp {
     And,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Value {
     Int(i64),
     Float(f64),
     String(String),
     Null,
+}
+
+impl Value {
+    pub fn to_str(&self) -> String {
+        match self {
+            Value::String(s) => s.to_string(),
+            Value::Int(x) => x.to_string(),
+            Value::Float(f) => f.to_string(),
+            Value::Null => "NULL".to_string(),
+        }
+    }
+    // TODO: 是否存在结尾'\0'的问题？
+    pub fn to_bytes(&self, target_type: ColumnType) -> Vec<u8> {
+        match target_type {
+            ColumnType::INT => match self {
+                Self::Int(x) => x.to_le_bytes()[0..4].to_vec(),
+                Self::Null => 0i32.to_le_bytes().to_vec(),
+                _ => {
+                    println!("mismatched type of data {}", self.to_str());
+                    vec![0u8; 4]
+                }
+            },
+            ColumnType::FLOAT => match self {
+                Self::Float(f) => f.to_le_bytes()[0..8].to_vec(),
+                Self::Null => 0f64.to_le_bytes()[0..8].to_vec(),
+                _ => {
+                    println!("mismatched type of data {}", self.to_str());
+                    vec![0u8; 8]
+                }
+            },
+            ColumnType::CHAR(l) => match self {
+                Self::String(s) => {
+                    let mut sv = vec![0u8; l];
+                    let b = s.as_bytes();
+                    let n = b.len().min(l);
+                    sv[..n].copy_from_slice(&b[..n]);
+                    sv
+                }
+                Self::Null => {
+                    vec![0u8; l]
+                }
+                _ => {
+                    println!("mismatched type of data {}", self.to_str());
+                    vec![0u8; l]
+                }
+            },
+        }
+    }
 }
 
 impl Expr {
