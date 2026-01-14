@@ -678,6 +678,16 @@ impl<'a> ExecutionContext<'a> {
             .ok_or_else(|| "Invalid Colume name".to_string())
     }
 
+    fn columns_to_indices(
+        &self,
+        metadata: &TableMetaData,
+        cols: &[String],
+    ) -> Result<Vec<usize>, String> {
+        cols.iter()
+            .map(|c| self.find_col_index(metadata, c))
+            .collect()
+    }
+
     fn convert_value_for_column(
         &self,
         value: &Value,
@@ -821,14 +831,55 @@ impl<'a> ExecutionContext<'a> {
         table: String,
         name: Option<String>,
     ) -> Result<(), String> {
-        // TODO:
-        println!("TODO: alter table {table} drop primary key {name:?}");
+        let meta = match self.dbms.metadata_map.get_mut(&table) {
+            Some(m) => m,
+            None => return Err("Table doesn't exist".to_string()),
+        };
+
+        let before = meta.const_info.column_constraint.len();
+        meta.const_info
+            .column_constraint
+            .retain(|c| !matches!(c, TableConstraint::PrimaryKey { .. }));
+
+        if meta.const_info.column_constraint.len() == before {
+            println!("!ERROR");
+            println!("primary");
+            return Ok(());
+        }
+
+        self.dbms.persist_metadata();
         Ok(())
     }
 
     fn alter_drop_foreign_key(&mut self, table: String, name: String) -> Result<(), String> {
-        // TODO:
-        println!("TODO: alter table {table} drop foreign key {name}");
+        let meta = match self.dbms.metadata_map.get_mut(&table) {
+            Some(m) => m,
+            None => return Err("Table doesn't exist".to_string()),
+        };
+
+        let before = meta.const_info.column_constraint.len();
+        meta.const_info
+            .column_constraint
+            .retain(|c| match c {
+                TableConstraint::ForeignKey {
+                    name: n,
+                    columns: _,
+                    ref_table: _,
+                    ref_columns: _,
+                } => match n {
+                    Some(nn) => nn != &name,
+                    None => true,
+                },
+                _ => true,
+            });
+
+        if meta.const_info.column_constraint.len() == before {
+            println!("!ERROR");
+            println!("foreign");
+            return Ok(());
+        }
+
+        self.dbms.persist_metadata();
         Ok(())
     }
 
@@ -837,8 +888,61 @@ impl<'a> ExecutionContext<'a> {
         table: String,
         constraint: TableConstraint,
     ) -> Result<(), String> {
-        // TODO:
-        println!("TODO: alter table {table} add primary key {constraint:?}");
+        let meta_view = match self.dbms.metadata_map.get(&table) {
+            Some(m) => m.clone(),
+            None => return Err("Table doesn't exist".to_string()),
+        };
+
+        // only one primary key allowed
+        if meta_view
+            .const_info
+            .column_constraint
+            .iter()
+            .any(|c| matches!(c, TableConstraint::PrimaryKey { .. }))
+        {
+            println!("!ERROR");
+            println!("primary");
+            return Ok(());
+        }
+
+        // extract columns
+        let cols = match constraint {
+            TableConstraint::PrimaryKey { columns, .. } => columns,
+            _ => return Err("Invalid constraint".to_string()),
+        };
+
+        if cols.is_empty() {
+            return Err("Primary key needs columns".to_string());
+        }
+
+        let pk_indices = self.columns_to_indices(&meta_view, &cols)?;
+
+        // duplication check
+        let rows = self.dbms.scan_table_all(&table)?;
+        let mut seen: Vec<Vec<ColumnValue>> = Vec::new();
+        for r in &rows {
+            let key: Vec<ColumnValue> = pk_indices.iter().map(|&i| r[i].clone()).collect();
+            if seen.iter().any(|k| *k == key) {
+                println!("!ERROR");
+                println!("duplicate");
+                return Ok(());
+            }
+            seen.push(key);
+        }
+
+        let meta = self.dbms.metadata_map.get_mut(&table).unwrap();
+        for &idx in &pk_indices {
+            if idx < meta.const_info.column_not_null.len() {
+                meta.const_info.column_not_null[idx] = true;
+            }
+        }
+        meta.const_info
+            .column_constraint
+            .push(TableConstraint::PrimaryKey {
+                name: Some("PK".to_string()),
+                columns: cols,
+            });
+        self.dbms.persist_metadata();
         Ok(())
     }
 
@@ -847,8 +951,90 @@ impl<'a> ExecutionContext<'a> {
         table: String,
         constraint: TableConstraint,
     ) -> Result<(), String> {
-        // TODO:
-        println!("TODO: alter table {table} add foreign key {constraint:?}");
+        let child_meta_view = match self.dbms.metadata_map.get(&table) {
+            Some(m) => m.clone(),
+            None => return Err("Table doesn't exist".to_string()),
+        };
+
+        let (columns, ref_table, ref_columns, name) = match constraint {
+            TableConstraint::ForeignKey {
+                columns,
+                ref_table,
+                ref_columns,
+                name,
+            } => (columns, ref_table, ref_columns, name),
+            _ => return Err("Invalid constraint".to_string()),
+        };
+
+        // ensure referenced table exists and has pk covering ref_columns
+        let parent_meta = match self.dbms.metadata_map.get(&ref_table) {
+            Some(m) => m.clone(),
+            None => {
+                println!("!ERROR");
+                println!("foreign");
+                return Ok(());
+            }
+        };
+
+        if columns.len() != ref_columns.len() {
+            println!("!ERROR");
+            println!("foreign");
+            return Ok(());
+        }
+
+        // check referenced columns exist
+        let child_idx = self.columns_to_indices(&child_meta_view, &columns)?;
+        let parent_idx = self.columns_to_indices(&parent_meta, &ref_columns)?;
+
+        // ensure parent pk exists and matches ref columns
+        let parent_pk = self.primary_key_indices(&parent_meta)?;
+        if parent_pk.len() != parent_idx.len()
+            || parent_idx
+                .iter()
+                .zip(parent_pk.iter())
+                .any(|(a, b)| a != b)
+        {
+            println!("!ERROR");
+            println!("foreign");
+            return Ok(());
+        }
+
+        // validate existing child rows
+        let ref_rows = self.dbms.scan_table_all(&ref_table)?;
+        let child_rows = self.dbms.scan_table_all(&table)?;
+        for crow in &child_rows {
+            let mut found = false;
+            for prow in &ref_rows {
+                let mut match_all = true;
+                for (ci, pi) in child_idx.iter().zip(parent_idx.iter()) {
+                    if crow[*ci] != prow[*pi] {
+                        match_all = false;
+                        break;
+                    }
+                }
+                if match_all {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                println!("!ERROR");
+                println!("foreign");
+                return Ok(());
+            }
+        }
+
+        let child_meta = self.dbms.metadata_map.get_mut(&table).unwrap();
+        child_meta
+            .const_info
+            .column_constraint
+            .push(TableConstraint::ForeignKey {
+                name,
+                columns,
+                ref_table,
+                ref_columns,
+            });
+        self.dbms.persist_metadata();
         Ok(())
     }
 

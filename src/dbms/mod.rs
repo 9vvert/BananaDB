@@ -159,6 +159,10 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             .expect("Failed in writing to TableMap.json!");
     }
 
+    pub fn persist_metadata(&self) {
+        self.update_meta_json();
+    }
+
     pub fn create_table(
         &mut self,
         name: &str,
