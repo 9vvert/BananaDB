@@ -2,9 +2,12 @@ pub mod page;
 
 use std::usize;
 
-use crate::table::page::{
-    PAGE_SIZE, TAIL_SIZE,
-    record::{ColumnType, RecordId},
+use crate::{
+    parser::ast::{TableConstraint, Value},
+    table::page::{
+        PAGE_SIZE, TAIL_SIZE,
+        record::{ColumnType, RecordId},
+    },
 };
 
 // NOTE:
@@ -25,7 +28,10 @@ impl TableMetaData {
         column_count: usize,
         column_name: Vec<&str>,
         column_type: Vec<&ColumnType>,
+        column_not_null: Vec<bool>,
         column_index: Vec<usize>,
+        column_default: Vec<Option<Value>>,
+        column_constraint: Vec<TableConstraint>,
     ) -> Self {
         // TODO:
         // read meta data from global.json
@@ -44,6 +50,7 @@ impl TableMetaData {
         // assert_eq!(item_size, real_size);
         assert_eq!(column_count, column_type.len());
         assert_eq!(column_name.len(), column_type.len());
+        assert_eq!(column_not_null.len(), column_type.len());
         //NOTE:
         //实际的item_size可以大于各个column size之和，方便后续增加null等信息
         TableMetaData {
@@ -55,6 +62,9 @@ impl TableMetaData {
                 column_name: column_name.iter().map(|x| x.to_string()).collect(),
                 column_type: column_type.into_iter().cloned().collect(),
                 column_offset: col_offset_list,
+                column_not_null: column_not_null,
+                column_default: column_default,
+                column_constraint: column_constraint,
             },
 
             mut_info: MutTableMetadata {
@@ -75,6 +85,10 @@ pub struct ConstTableMetadata {
     pub column_name: Vec<String>,
     pub column_type: Vec<ColumnType>,
     pub column_offset: Vec<usize>, // offset of each column
+    pub column_default: Vec<Option<Value>>,
+    pub column_constraint: Vec<TableConstraint>,
+    #[serde(default)]
+    pub column_not_null: Vec<bool>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]

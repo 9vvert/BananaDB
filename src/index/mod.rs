@@ -1,15 +1,12 @@
-use std::{cmp::Ordering, mem::size_of};
+use std::cmp::Ordering;
 
 use crate::{
     dbms::{
-        cache::{CacheBuf, Page, PageId},
+        cache::{CacheBuf, PageId},
         resource::PageType,
     },
     index::node::{Bound, HeaderPage, INVALID_PAGE, IndexNode, InnerNode, LeafNode, NodeType},
-    table::page::{
-        PAGE_SIZE,
-        record::{ColumnType, ColumnValue, RecordId},
-    },
+    table::page::record::{ColumnType, ColumnValue, RecordId},
 };
 
 pub mod node;
@@ -91,6 +88,11 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
                 let sb = std::str::from_utf8(b).unwrap().trim_end_matches('\0');
                 sa.cmp(sb)
             }
+            ColumnType::FLOAT => {
+                let va = f64::from_le_bytes(a[..8].try_into().unwrap());
+                let vb = f64::from_le_bytes(b[..8].try_into().unwrap());
+                va.partial_cmp(&vb).unwrap_or(Ordering::Equal)
+            }
         }
     }
 
@@ -104,6 +106,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
                 buf[..copy_len].copy_from_slice(&s.as_bytes()[..copy_len]);
                 Ok(buf)
             }
+            (ColumnValue::FLOAT(x), ColumnType::FLOAT) => Ok(x.to_le_bytes().to_vec()),
             _ => Err("Column type mismatch for index key".to_string()),
         }
     }
@@ -191,7 +194,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
                 &self.extra_info,
             );
             page.set_dirty();
-            let mut node = IndexNode::new(&mut page.data, self.key_size);
+            let node = IndexNode::new(&mut page.data, self.key_size);
             // check node type
             if node.node_type() != NodeType::Leaf {
                 return Err("Target node is not leaf".to_string());
@@ -320,7 +323,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
                 &self.extra_info,
             );
             page.set_dirty();
-            let mut node = IndexNode::new(&mut page.data, self.key_size);
+            let node = IndexNode::new(&mut page.data, self.key_size);
             let mut inner_node = InnerNode::new(node);
             let total = inner_node.key_count();
             let mid = total / 2;
@@ -538,6 +541,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         }
         let mut leaf_node = LeafNode::new(node);
         let key_cnt = leaf_node.key_count();
+        let mut found = false;
         for i in 0..key_cnt {
             if Self::compare_key(self.col_type, leaf_node.leaf_key_bytes(i), &key)
                 == Ordering::Equal
@@ -545,10 +549,628 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
             {
                 leaf_node.shift_leaf_entries_left(i, key_cnt - 1);
                 leaf_node.set_key_count(key_cnt - 1);
+                found = true;
                 break;
             }
         }
-        // TODO: handle underflow/merge if needed.
+        if !found {
+            return Ok(());
+        }
+
+        let path = {
+            let (_, path) = self.find_leaf(&key, root);
+            path
+        };
+        self.rebalance_after_delete(path)?;
+        Ok(())
+    }
+
+    fn rebalance_after_delete(&mut self, path: Vec<PageId>) -> Result<(), String> {
+        if path.len() <= 1 {
+            return self.collapse_root_if_needed();
+        }
+
+        for depth in (1..path.len()).rev() {
+            let child_id = path[depth];
+            let parent_id = path[depth - 1];
+            self.fix_underflow(parent_id, child_id)?;
+        }
+
+        self.collapse_root_if_needed()
+    }
+
+    fn fix_underflow(&mut self, parent_id: u32, child_id: u32) -> Result<(), String> {
+        let node_type = {
+            let child_page = self.buf.get_page(
+                self.table_name,
+                child_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            let node = IndexNode::new(&mut child_page.data, self.key_size);
+            node.node_type()
+        };
+
+        match node_type {
+            NodeType::Leaf => self.fix_leaf_underflow(parent_id, child_id),
+            NodeType::Internal => self.fix_internal_underflow(parent_id, child_id),
+        }
+    }
+
+    fn fix_leaf_underflow(&mut self, parent_id: u32, child_id: u32) -> Result<(), String> {
+        let (child_key_cnt, leaf_capacity) = {
+            let child_page = self.buf.get_page(
+                self.table_name,
+                child_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            let node = IndexNode::new(&mut child_page.data, self.key_size);
+            let leaf_node = LeafNode::new(node);
+            (leaf_node.key_count(), leaf_node.leaf_capacity())
+        };
+        let min_keys = Self::min_keys(leaf_capacity);
+        if child_key_cnt >= min_keys {
+            return Ok(());
+        }
+
+        let (siblings, child_idx) = self.get_parent_children(parent_id, child_id)?;
+
+        if child_idx > 0 {
+            let left_id = siblings[child_idx - 1];
+            let left_count = self.leaf_key_count(left_id)?;
+            if left_count > min_keys {
+                self.borrow_from_left_leaf(parent_id, child_idx, left_id, child_id)?;
+                return Ok(());
+            }
+        }
+
+        if child_idx + 1 < siblings.len() {
+            let right_id = siblings[child_idx + 1];
+            let right_count = self.leaf_key_count(right_id)?;
+            if right_count > min_keys {
+                self.borrow_from_right_leaf(parent_id, child_idx, right_id, child_id)?;
+                return Ok(());
+            }
+        }
+
+        if child_idx > 0 {
+            let left_id = siblings[child_idx - 1];
+            self.merge_leaf_into_left(parent_id, child_idx, left_id, child_id)?;
+        } else {
+            let right_id = siblings[child_idx + 1];
+            self.merge_leaf_with_right(parent_id, child_idx, child_id, right_id)?;
+        }
+        Ok(())
+    }
+
+    fn fix_internal_underflow(&mut self, parent_id: u32, child_id: u32) -> Result<(), String> {
+        let (child_keys_len, internal_capacity) = {
+            let page = self.buf.get_page(
+                self.table_name,
+                child_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let inner = InnerNode::new(node);
+            (inner.key_count(), inner.internal_capacity())
+        };
+
+        let min_keys = Self::min_keys(internal_capacity);
+        if child_keys_len >= min_keys {
+            return Ok(());
+        }
+
+        let (siblings, child_idx) = self.get_parent_children(parent_id, child_id)?;
+
+        if child_idx > 0 {
+            let left_id = siblings[child_idx - 1];
+            let left_keys = self.internal_key_count(left_id)?;
+            if left_keys > min_keys {
+                self.borrow_from_left_internal(parent_id, child_idx, left_id, child_id)?;
+                return Ok(());
+            }
+        }
+
+        if child_idx + 1 < siblings.len() {
+            let right_id = siblings[child_idx + 1];
+            let right_keys = self.internal_key_count(right_id)?;
+            if right_keys > min_keys {
+                self.borrow_from_right_internal(parent_id, child_idx, right_id, child_id)?;
+                return Ok(());
+            }
+        }
+
+        if child_idx > 0 {
+            let left_id = siblings[child_idx - 1];
+            self.merge_internal_into_left(parent_id, child_idx, left_id, child_id)?;
+        } else {
+            let right_id = siblings[child_idx + 1];
+            self.merge_internal_with_right(parent_id, child_idx, child_id, right_id)?;
+        }
+
+        Ok(())
+    }
+
+    fn min_keys(capacity: usize) -> usize {
+        (capacity + 1) / 2
+    }
+
+    fn get_parent_children(
+        &mut self,
+        parent_id: u32,
+        child_id: u32,
+    ) -> Result<(Vec<u32>, usize), String> {
+        let parent_page = self.buf.get_page(
+            self.table_name,
+            parent_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        let node = IndexNode::new(&mut parent_page.data, self.key_size);
+        let inner = InnerNode::new(node);
+        let (keys, children) = Self::read_internal_layout(&inner);
+        let pos = children
+            .iter()
+            .position(|&v| v == child_id)
+            .ok_or_else(|| "Parent-child link broken".to_string())?;
+        drop(keys);
+        Ok((children, pos))
+    }
+
+    fn leaf_key_count(&mut self, page_id: u32) -> Result<usize, String> {
+        let page = self.buf.get_page(
+            self.table_name,
+            page_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        let node = IndexNode::new(&mut page.data, self.key_size);
+        if node.node_type() != NodeType::Leaf {
+            return Err("Sibling is not a leaf".to_string());
+        }
+        Ok(LeafNode::new(node).key_count())
+    }
+
+    fn internal_key_count(&mut self, page_id: u32) -> Result<usize, String> {
+        let page = self.buf.get_page(
+            self.table_name,
+            page_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        let node = IndexNode::new(&mut page.data, self.key_size);
+        if node.node_type() != NodeType::Internal {
+            return Err("Sibling is not internal".to_string());
+        }
+        Ok(InnerNode::new(node).key_count())
+    }
+
+    fn borrow_from_left_leaf(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        left_id: u32,
+        child_id: u32,
+    ) -> Result<(), String> {
+        let (borrow_key, borrow_rid) = {
+            let page = self.buf.get_page(
+                self.table_name,
+                left_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut left = LeafNode::new(node);
+            let count = left.key_count();
+            let key = left.leaf_key_bytes(count - 1).to_vec();
+            let rid_val = left.leaf_record_id(count - 1);
+            left.set_key_count(count - 1);
+            (key, rid_val)
+        };
+
+        {
+            let page = self.buf.get_page(
+                self.table_name,
+                child_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut leaf = LeafNode::new(node);
+            let count = leaf.key_count();
+            leaf.shift_leaf_entries(0, count);
+            leaf.write_leaf_entry(0, &borrow_key, borrow_rid);
+            leaf.set_key_count(count + 1);
+        }
+
+        {
+            let page = self.buf.get_page(
+                self.table_name,
+                parent_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut inner = InnerNode::new(node);
+            let right_child = inner.internal_child_at(child_idx);
+            inner.write_internal_entry(child_idx - 1, &borrow_key, right_child);
+        }
+        Ok(())
+    }
+
+    fn borrow_from_right_leaf(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        right_id: u32,
+        child_id: u32,
+    ) -> Result<(), String> {
+        let (borrow_key, borrow_rid, new_sep) = {
+            let page = self.buf.get_page(
+                self.table_name,
+                right_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut right = LeafNode::new(node);
+            let count = right.key_count();
+            let key = right.leaf_key_bytes(0).to_vec();
+            let rid_val = right.leaf_record_id(0);
+            right.shift_leaf_entries_left(0, count - 1);
+            right.set_key_count(count - 1);
+            let sep = right.leaf_key_bytes(0).to_vec();
+            (key, rid_val, sep)
+        };
+
+        {
+            let page = self.buf.get_page(
+                self.table_name,
+                child_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut leaf = LeafNode::new(node);
+            let count = leaf.key_count();
+            leaf.write_leaf_entry(count, &borrow_key, borrow_rid);
+            leaf.set_key_count(count + 1);
+        }
+
+        {
+            let page = self.buf.get_page(
+                self.table_name,
+                parent_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut inner = InnerNode::new(node);
+            let right_child = inner.internal_child_at(child_idx + 1);
+            inner.write_internal_entry(child_idx, &new_sep, right_child);
+        }
+        Ok(())
+    }
+
+    fn merge_leaf_into_left(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        left_id: u32,
+        child_id: u32,
+    ) -> Result<(), String> {
+        let (move_buf, move_cnt, next_leaf) = {
+            let page = self.buf.get_page(
+                self.table_name,
+                child_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let leaf = LeafNode::new(node);
+            let count = leaf.key_count();
+            let size = leaf.leaf_entry_size();
+            let mut buf = vec![0u8; count * size];
+            let src_off = leaf.leaf_entry_offset(0);
+            let move_len = buf.len();
+            buf.copy_from_slice(&leaf.data[src_off..src_off + move_len]);
+            (buf, count, leaf.next_leaf())
+        };
+
+        {
+            let page = self.buf.get_page(
+                self.table_name,
+                left_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut leaf = LeafNode::new(node);
+            let left_cnt = leaf.key_count();
+            let dst_off = leaf.leaf_entry_offset(left_cnt);
+            leaf.data[dst_off..dst_off + move_buf.len()].copy_from_slice(&move_buf);
+            leaf.set_key_count(left_cnt + move_cnt);
+            leaf.set_next_leaf(next_leaf);
+        }
+
+        self.remove_parent_entry(parent_id, child_idx - 1)?;
+        Ok(())
+    }
+
+    fn merge_leaf_with_right(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        child_id: u32,
+        right_id: u32,
+    ) -> Result<(), String> {
+        let (move_buf, move_cnt, next_leaf) = {
+            let page = self.buf.get_page(
+                self.table_name,
+                right_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let leaf = LeafNode::new(node);
+            let count = leaf.key_count();
+            let size = leaf.leaf_entry_size();
+            let mut buf = vec![0u8; count * size];
+            let src_off = leaf.leaf_entry_offset(0);
+            let move_len = buf.len();
+            buf.copy_from_slice(&leaf.data[src_off..src_off + move_len]);
+            (buf, count, leaf.next_leaf())
+        };
+
+        {
+            let page = self.buf.get_page(
+                self.table_name,
+                child_id as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            page.set_dirty();
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            let mut leaf = LeafNode::new(node);
+            let child_cnt = leaf.key_count();
+            let dst_off = leaf.leaf_entry_offset(child_cnt);
+            leaf.data[dst_off..dst_off + move_buf.len()].copy_from_slice(&move_buf);
+            leaf.set_key_count(child_cnt + move_cnt);
+            leaf.set_next_leaf(next_leaf);
+        }
+
+        self.remove_parent_entry(parent_id, child_idx)?;
+        Ok(())
+    }
+
+    fn borrow_from_left_internal(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        left_id: u32,
+        child_id: u32,
+    ) -> Result<(), String> {
+        let separator = self.parent_key(parent_id, child_idx - 1)?;
+
+        let (mut left_keys, mut left_children) = self.read_internal_page(left_id)?;
+        let borrowed_key = left_keys.pop().unwrap();
+        let borrowed_child = left_children.pop().unwrap();
+
+        let (mut child_keys, mut child_children) = self.read_internal_page(child_id)?;
+        child_keys.insert(0, separator);
+        child_children.insert(0, borrowed_child);
+
+        self.write_internal_page(left_id, left_keys, left_children)?;
+        self.write_internal_page(child_id, child_keys, child_children)?;
+        self.update_parent_key(parent_id, child_idx - 1, borrowed_key)
+    }
+
+    fn borrow_from_right_internal(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        right_id: u32,
+        child_id: u32,
+    ) -> Result<(), String> {
+        let separator = self.parent_key(parent_id, child_idx)?;
+
+        let (mut right_keys, mut right_children) = self.read_internal_page(right_id)?;
+        let borrowed_key = right_keys.remove(0);
+        let borrowed_child = right_children.remove(0);
+
+        let (mut child_keys, mut child_children) = self.read_internal_page(child_id)?;
+        child_keys.push(separator);
+        child_children.push(borrowed_child);
+
+        self.write_internal_page(right_id, right_keys, right_children)?;
+        self.write_internal_page(child_id, child_keys, child_children)?;
+        self.update_parent_key(parent_id, child_idx, borrowed_key)
+    }
+
+    fn merge_internal_into_left(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        left_id: u32,
+        child_id: u32,
+    ) -> Result<(), String> {
+        let separator = self.parent_key(parent_id, child_idx - 1)?;
+        let (mut left_keys, mut left_children) = self.read_internal_page(left_id)?;
+        let (child_keys, child_children) = self.read_internal_page(child_id)?;
+
+        left_keys.push(separator);
+        left_keys.extend(child_keys);
+        left_children.extend(child_children);
+
+        self.write_internal_page(left_id, left_keys, left_children)?;
+        self.remove_parent_entry(parent_id, child_idx - 1)
+    }
+
+    fn merge_internal_with_right(
+        &mut self,
+        parent_id: u32,
+        child_idx: usize,
+        child_id: u32,
+        right_id: u32,
+    ) -> Result<(), String> {
+        let separator = self.parent_key(parent_id, child_idx)?;
+        let (mut child_keys, mut child_children) = self.read_internal_page(child_id)?;
+        let (right_keys, right_children) = self.read_internal_page(right_id)?;
+
+        child_keys.push(separator);
+        child_keys.extend(right_keys);
+        child_children.extend(right_children);
+
+        self.write_internal_page(child_id, child_keys, child_children)?;
+        self.remove_parent_entry(parent_id, child_idx)
+    }
+
+    fn parent_key(&mut self, parent_id: u32, key_idx: usize) -> Result<Vec<u8>, String> {
+        let page = self.buf.get_page(
+            self.table_name,
+            parent_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        let node = IndexNode::new(&mut page.data, self.key_size);
+        let inner = InnerNode::new(node);
+        Ok(inner.internal_key_bytes(key_idx).to_vec())
+    }
+
+    fn remove_parent_entry(&mut self, parent_id: u32, remove_idx: usize) -> Result<(), String> {
+        let page = self.buf.get_page(
+            self.table_name,
+            parent_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        page.set_dirty();
+        let node = IndexNode::new(&mut page.data, self.key_size);
+        let mut inner = InnerNode::new(node);
+        let (mut keys, mut children) = Self::read_internal_layout(&inner);
+        keys.remove(remove_idx);
+        children.remove(remove_idx + 1);
+        Self::write_internal_layout(&mut inner, &keys, &children);
+        Ok(())
+    }
+
+    fn update_parent_key(
+        &mut self,
+        parent_id: u32,
+        key_idx: usize,
+        new_key: Vec<u8>,
+    ) -> Result<(), String> {
+        let page = self.buf.get_page(
+            self.table_name,
+            parent_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        page.set_dirty();
+        let node = IndexNode::new(&mut page.data, self.key_size);
+        let mut inner = InnerNode::new(node);
+        let (mut keys, children) = Self::read_internal_layout(&inner);
+        keys[key_idx] = new_key;
+        Self::write_internal_layout(&mut inner, &keys, &children);
+        Ok(())
+    }
+
+    fn read_internal_page(
+        &mut self,
+        page_id: u32,
+    ) -> Result<(Vec<Vec<u8>>, Vec<u32>), String> {
+        let page = self.buf.get_page(
+            self.table_name,
+            page_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        let node = IndexNode::new(&mut page.data, self.key_size);
+        if node.node_type() != NodeType::Internal {
+            return Err("Node type mismatch".to_string());
+        }
+        let inner = InnerNode::new(node);
+        Ok(Self::read_internal_layout(&inner))
+    }
+
+    fn write_internal_page(
+        &mut self,
+        page_id: u32,
+        keys: Vec<Vec<u8>>,
+        children: Vec<u32>,
+    ) -> Result<(), String> {
+        let page = self.buf.get_page(
+            self.table_name,
+            page_id as usize,
+            &PageType::INDEX,
+            &self.extra_info,
+        );
+        page.set_dirty();
+        let node = IndexNode::new(&mut page.data, self.key_size);
+        if node.node_type() != NodeType::Internal {
+            return Err("Node type mismatch".to_string());
+        }
+        let mut inner = InnerNode::new(node);
+        Self::write_internal_layout(&mut inner, &keys, &children);
+        Ok(())
+    }
+
+    fn read_internal_layout(inner: &InnerNode<'_>) -> (Vec<Vec<u8>>, Vec<u32>) {
+        let key_cnt = inner.key_count();
+        let mut keys = Vec::with_capacity(key_cnt);
+        let mut children = Vec::with_capacity(key_cnt + 1);
+        children.push(inner.internal_child_at(0));
+        for i in 0..key_cnt {
+            keys.push(inner.internal_key_bytes(i).to_vec());
+            children.push(inner.internal_child_at(i + 1));
+        }
+        (keys, children)
+    }
+
+    fn write_internal_layout(inner: &mut InnerNode<'_>, keys: &[Vec<u8>], children: &[u32]) {
+        assert_eq!(children.len(), keys.len() + 1);
+        inner.set_key_count(keys.len());
+        inner.set_internal_child0(children[0]);
+        for (i, key) in keys.iter().enumerate() {
+            inner.write_internal_entry(i, key, children[i + 1]);
+        }
+    }
+
+    fn collapse_root_if_needed(&mut self) -> Result<(), String> {
+        let root = self.root_page_id();
+        if root == INVALID_PAGE {
+            return Ok(());
+        }
+
+        let (root_type, key_count, child0) = {
+            let page = self.buf.get_page(
+                self.table_name,
+                root as usize,
+                &PageType::INDEX,
+                &self.extra_info,
+            );
+            let node = IndexNode::new(&mut page.data, self.key_size);
+            match node.node_type() {
+                NodeType::Leaf => return Ok(()),
+                NodeType::Internal => {
+                    let inner = InnerNode::new(node);
+                    (NodeType::Internal, inner.key_count(), inner.internal_child_at(0))
+                }
+            }
+        };
+
+        if root_type == NodeType::Internal && key_count == 0 {
+            self.set_root_page(child0);
+        }
         Ok(())
     }
 }

@@ -40,6 +40,7 @@ impl RecordId {
 pub enum ColumnType {
     INT,
     CHAR(usize),
+    FLOAT,
 }
 
 impl ColumnType {
@@ -47,14 +48,16 @@ impl ColumnType {
         match self {
             Self::INT => 4,
             Self::CHAR(x) => *x, // INFO: need dereference
+            Self::FLOAT => 8,
         }
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
 pub enum ColumnValue {
     INT(i32),
     CAHR(String),
+    FLOAT(f64),
 }
 
 impl Display for ColumnValue {
@@ -62,6 +65,7 @@ impl Display for ColumnValue {
         let s = match self {
             Self::INT(x) => x.to_string(),
             Self::CAHR(s) => s.to_string(),
+            Self::FLOAT(x) => x.to_string(),
         };
         write!(f, "{s}")
     }
@@ -149,6 +153,14 @@ impl<'a> RecordItem<'a> {
                 let str_val: String = str::from_utf8(str_data).unwrap().to_string();
                 Ok(ColumnValue::CAHR(str_val))
             }
+            ColumnType::FLOAT => {
+                let float_val = f64::from_le_bytes(
+                    self.item_data[target_offset..target_offset + target_size]
+                        .try_into()
+                        .unwrap(),
+                );
+                Ok(ColumnValue::FLOAT(float_val))
+            }
         }
     }
 
@@ -182,6 +194,15 @@ impl<'a> RecordItem<'a> {
                 let n = dst_data.len().min(s.len());
                 let src_data: &[u8] = s.as_bytes();
                 dst_data[..n].copy_from_slice(&src_data[..n]);
+                Ok(())
+            }
+            ColumnValue::FLOAT(x) => {
+                if target_type != ColumnType::FLOAT {
+                    return Err("Column type mismatch".to_string());
+                }
+                let float_bytes: [u8; 8] = x.to_le_bytes();
+                self.item_data[target_offset..target_offset + target_size]
+                    .copy_from_slice(&float_bytes);
                 Ok(())
             }
         }

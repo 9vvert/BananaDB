@@ -50,7 +50,7 @@ impl FileManager {
 
         // TEST:
         //
-        println!("create file:{file_path_str}");
+        // println!("create file:{file_path_str}");
         return Ok(format!("Create file: {}", file_path_str));
     }
 
@@ -75,7 +75,7 @@ impl FileManager {
 
         match OpenOptions::new().read(true).write(true).open(file_path) {
             Ok(f) => Ok(f),
-            Err(e) => Err(IOManagerError::IOError(e)), // INFO:IOManagerError是自定义错误类型，还是需要用Err包装
+            Err(e) => Err(IOManagerError::IOError(e)), // TIP:IOManagerError是自定义错误类型，还是需要用Err包装
         }
     }
 
@@ -88,7 +88,7 @@ impl FileManager {
     ) -> Result<(), IOManagerError> {
         let offset: u64 = (page_index * PAGE_SIZE as usize) as u64;
 
-        file.seek(std::io::SeekFrom::Start(offset))?; // INFO: '?' 在发生错误的时候向上传递，可以自动类型转换
+        file.seek(std::io::SeekFrom::Start(offset))?; // TIP: '?' 在发生错误的时候向上传递，可以自动类型转换
         // 而上面的open_file不能直接 '?' 的原因是接受
         // fs::File类型
         file.read(buffer)?;
