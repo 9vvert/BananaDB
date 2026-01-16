@@ -9,8 +9,8 @@ use file_system::FileManager;
 use lru_list::LruList;
 
 use crate::dbms::{
-    PAGE_SIZE,
     resource::{PageType, ResId},
+    PAGE_SIZE,
 };
 
 // ==================== Page ======================
@@ -69,6 +69,16 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
         }
     }
 
+    // Drop all cached pages and reopen files lazily next time.
+    // Useful when files are deleted so we don't try to write back to removed paths.
+    pub fn invalidate_all(&mut self) {
+        self.cache_map.clear();
+        self.reverse_map.clear();
+        self.pages = vec![Page::new(); PAGE_NUM];
+        self.lru_list = LruList::<PAGE_NUM>::new();
+        self.opened_file.clear();
+    }
+
     //============ Public IO ================
     pub fn get_page(
         &mut self,
@@ -97,7 +107,10 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
                     let new_fd = self
                         .file_sys
                         .open_file(&file_name, page_type, extra_info)
-                        .expect(&format!("filename: {} not found", &file_name));
+                        .expect(&format!(
+                            "filename: {} {} {} not found",
+                            &file_name, &page_type, &extra_info
+                        ));
                     self.opened_file.insert(file_path.to_string(), new_fd);
                 }
 
@@ -216,7 +229,10 @@ impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
             let mut wb_fd = self
                 .file_sys
                 .open_file(&wb_file_name, &wb_file_type, &wb_extra_info)
-                .unwrap();
+                .expect(&format!(
+                    "file not found: file:{} type:{} page:{} extra:{}",
+                    wb_file_name, wb_file_type, wb_page_id, wb_extra_info
+                ));
             self.file_sys
                 .write_page(&mut wb_fd, wb_page_id, &drop_page.data)
                 .unwrap();
@@ -254,7 +270,7 @@ impl<const PAGE_NUM: usize> Drop for CacheBuf<PAGE_NUM> {
         // TIP:
         // 如果使用for dirty_page in self.pages.iter().enumerate(),
         // 会导致所有权的引用问题（迭代的时候获得&mut self, 而下面self.write_back_page还需要）
-        // 一个优雅的解决方法是：将迭代和write_back的时序分离开,这样就不会出现交错所有权引用的冲突
+        // 一个解决方法是：将迭代和write_back的时序分离开,这样就不会出现交错所有权引用的冲突
         // 不过，其实还是没有完全发挥“安全”的空间，如果要使用可变引用的两个成员可以保证互不干扰，但是编译器无法知晓，还是会报错
         // 如果时序上也无法做到完全不重叠，该怎么办？出了改变has接口，有没有简洁的实现方法？
         let dirty_page_id: Vec<usize> = self
@@ -264,6 +280,21 @@ impl<const PAGE_NUM: usize> Drop for CacheBuf<PAGE_NUM> {
             .filter_map(|(i, p)| if p.dirty { Some(i) } else { None })
             .collect();
 
+        for cache_id in dirty_page_id {
+            self.write_back_page(cache_id);
+        }
+    }
+}
+
+impl<const PAGE_NUM: usize> CacheBuf<PAGE_NUM> {
+    // Flush all dirty pages to disk; keeps cache entries but clears dirty bits.
+    pub fn flush_all(&mut self) {
+        let dirty_page_id: Vec<usize> = self
+            .pages
+            .iter()
+            .enumerate()
+            .filter_map(|(i, p)| if p.dirty { Some(i) } else { None })
+            .collect();
         for cache_id in dirty_page_id {
             self.write_back_page(cache_id);
         }

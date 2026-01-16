@@ -1,4 +1,7 @@
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    path::Path,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -27,10 +30,12 @@ pub struct ResId {
 
 impl ResId {
     pub fn new(page_type: &PageType, file_name: &str, page_id: usize, extra: &str) -> Self {
+        let tmps: String;
         let extra_str: &str = if extra.is_empty() {
             "@"
         } else {
-            &("@".to_string() + extra)
+            tmps = "@".to_string() + extra;
+            &tmps
         };
         // INFO: 这里使用 & 可以，但是 .as_str() 无法正常编译
 
@@ -50,16 +55,29 @@ impl ResId {
     pub fn gen_file_path(file_name: &str, file_type: &PageType, extra: &str) -> String {
         // XXX:
         // @ 在测试机器上是否是合法文件字符?
+        let tmps: String;
         let extra_str: &str = if extra.is_empty() {
             "@"
         } else {
-            &("@".to_string() + extra)
+            tmps = "@".to_string() + extra;
+            &tmps
         };
         // INFO:
         // impl Display for enum type, then using to_string
+        // file_name may contain a database prefix like "DB/TBL", but the actual file
+        // should be named after the table itself (TBL@.table) inside that directory.
         let dir_path = DATA_DIR.to_string() + "/base/" + file_name;
-        let file_path = dir_path + "/" + file_name + extra_str + "." + &file_type.to_string();
-        file_path
+        let base_name = Path::new(file_name)
+            .file_name()
+            .and_then(|p| p.to_str())
+            .unwrap_or(file_name);
+        format!(
+            "{}/{}{}.{file_type}",
+            dir_path,
+            base_name,
+            extra_str,
+            file_type = file_type.to_string()
+        )
     }
 
     // PageType, filename, pageid, extra

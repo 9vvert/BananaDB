@@ -1,0 +1,14 @@
+compile:
+  commands: cargo build
+
+run:
+  commands: ./target/debug/BananaDB
+  flags:
+    - query
+    - data
+    - join
+    - pk
+    - fk
+    - comb
+    - index
+

@@ -150,7 +150,7 @@ impl<'a> RecordItem<'a> {
                     Some(i) => &raw_bytes[..i],
                     None => raw_bytes,
                 };
-                let str_val: String = str::from_utf8(str_data).unwrap().to_string();
+                let str_val: String = std::str::from_utf8(str_data).unwrap().to_string();
                 Ok(ColumnValue::CAHR(str_val))
             }
             ColumnType::FLOAT => {

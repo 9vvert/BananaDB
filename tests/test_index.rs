@@ -1,5 +1,5 @@
 use BananaDB::{
-    dbms::{FilterOp, DBMS},
+    dbms::{DBMS, FilterOp},
     table::page::record::{ColumnType, ColumnValue, RecordId},
 };
 
@@ -54,12 +54,7 @@ fn test_index_build_and_query() {
 
     // update value through indexed column
     manager
-        .write_item_col(
-            "idx_people",
-            rids[0],
-            "age",
-            ColumnValue::INT(50),
-        )
+        .write_item_col("idx_people", rids[0], "age", ColumnValue::INT(50))
         .unwrap();
     let eq_50 = manager
         .filter_rids("idx_people", "age", FilterOp::Eq, ColumnValue::INT(50))

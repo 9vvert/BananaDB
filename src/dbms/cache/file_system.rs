@@ -1,7 +1,7 @@
 // global下面存储顶层信息   现阶段假设文件为 ./global/map.json
 // base下存储不同的表
 
-use std::fs::{self, OpenOptions, remove_file};
+use std::fs::{self, remove_file, OpenOptions};
 use std::io::{Read, Seek, Write};
 use std::path::Path;
 
@@ -46,7 +46,11 @@ impl FileManager {
         if let Some(parent_dir) = file_path.parent() {
             fs::create_dir_all(parent_dir)?;
         }
-        fs::File::create_new(Path::new(&file_path))?;
+        OpenOptions::new()
+            .write(true)
+            .create_new(true) // 关键：不存在才创建，存在则 Err(AlreadyExists)
+            .open(&file_path)?;
+        // fs::File::create_new(Path::new(&file_path))?;
 
         // TEST:
         //
@@ -73,9 +77,12 @@ impl FileManager {
         //     Err(e) => eprintln!("metadata ERR: {:?} ({})", e.kind(), e),
         // }
 
-        match OpenOptions::new().read(true).write(true).open(file_path) {
+        match OpenOptions::new().read(true).write(true).open(&file_path) {
             Ok(f) => Ok(f),
-            Err(e) => Err(IOManagerError::IOError(e)), // TIP:IOManagerError是自定义错误类型，还是需要用Err包装
+            Err(e) => {
+                eprintln!("{}", file_path);
+                Err(IOManagerError::IOError(e)) // TIP:IOManagerError是自定义错误类型，还是需要用Err包装
+            }
         }
     }
 
@@ -89,8 +96,8 @@ impl FileManager {
         let offset: u64 = (page_index * PAGE_SIZE as usize) as u64;
 
         file.seek(std::io::SeekFrom::Start(offset))?; // TIP: '?' 在发生错误的时候向上传递，可以自动类型转换
-        // 而上面的open_file不能直接 '?' 的原因是接受
-        // fs::File类型
+                                                      // 而上面的open_file不能直接 '?' 的原因是接受
+                                                      // fs::File类型
         file.read(buffer)?;
         Ok(())
     }

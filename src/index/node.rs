@@ -1,8 +1,8 @@
 use crate::{
     dbms::cache::Page,
     table::page::{
-        PAGE_SIZE,
         record::{ColumnValue, RecordId},
+        PAGE_SIZE,
     },
 };
 
@@ -106,11 +106,11 @@ impl<'a> InnerNode<'a> {
     }
 
     pub fn internal_entry_size(&self) -> usize {
-        self.key_size + size_of::<u32>()
+        self.key_size + 4
     }
 
     pub fn internal_capacity(&self) -> usize {
-        (PAGE_SIZE - NODE_HEADER_SIZE - size_of::<u32>()) / self.internal_entry_size()
+        (PAGE_SIZE - NODE_HEADER_SIZE - 4) / self.internal_entry_size()
     }
 
     pub fn internal_first_child_offset(&self) -> usize {
@@ -118,7 +118,7 @@ impl<'a> InnerNode<'a> {
     }
 
     pub fn internal_entry_offset(&self, index: usize) -> usize {
-        NODE_HEADER_SIZE + size_of::<u32>() + index * self.internal_entry_size()
+        NODE_HEADER_SIZE + 4 + index * self.internal_entry_size()
     }
 
     pub fn internal_child_at(&self, idx: usize) -> u32 {
@@ -157,7 +157,7 @@ impl<'a> InnerNode<'a> {
             return;
         }
         let entry_size = self.internal_entry_size();
-        let base = NODE_HEADER_SIZE + size_of::<u32>();
+        let base = NODE_HEADER_SIZE + 4;
         let total_bytes = (end - start) * entry_size;
         self.data.copy_within(
             base + start * entry_size..base + start * entry_size + total_bytes,
@@ -170,7 +170,7 @@ impl<'a> InnerNode<'a> {
             return;
         }
         let entry_size = self.internal_entry_size();
-        let base = NODE_HEADER_SIZE + size_of::<u32>();
+        let base = NODE_HEADER_SIZE + 4;
         let total_bytes = (end - start) * entry_size;
         self.data.copy_within(
             base + (start + 1) * entry_size..base + (start + 1) * entry_size + total_bytes,
@@ -213,7 +213,7 @@ impl<'a> LeafNode<'a> {
     }
 
     pub fn leaf_entry_size(&self) -> usize {
-        self.key_size + size_of::<u32>()
+        self.key_size + 4
     }
 
     // leaf

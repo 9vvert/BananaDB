@@ -2,11 +2,10 @@ use clap::builder::Str;
 // NOTE:
 // dmbs的抽象层级：
 // reate table/index, insert item, delete item
-use colored::Colorize;
 use hex::ToHex;
 use std::{
     collections::HashMap,
-    fs::{self, File, OpenOptions, read_to_string},
+    fs::{self, read_to_string, File, OpenOptions},
     hash::Hash,
     io::Write,
     path::Path,
@@ -15,14 +14,14 @@ use std::{
 use crate::{
     config::DATA_DIR,
     dbms::cache::CacheBuf,
-    index::{BPlusTree, node::Bound},
+    index::{node::Bound, BPlusTree},
     parser::ast::{TableConstraint, Value},
     table::{
-        TableMetaData,
         page::{
-            TablePage,
             record::{ColumnType, ColumnValue, RecordId, RecordItem},
+            TablePage,
         },
+        TableMetaData,
     },
 };
 
@@ -48,8 +47,8 @@ pub struct RecordItemGuard<'a> {
 
 pub struct DBMS<const PAGE_NUM: usize> {
     pub db_io: CacheBuf<PAGE_NUM>,
-    curr_db: String,                 // name of the current database
-    db_map: HashMap<String, String>, // database usage
+    pub curr_db: String,                 // name of the current database
+    pub db_map: HashMap<String, String>, // database usage
     pub metadata_map: HashMap<String, TableMetaData>,
     // metadata_map: HashMap<String, TableMetaData>, // record  the meta info of a table
     pub global_path: String,
@@ -57,6 +56,14 @@ pub struct DBMS<const PAGE_NUM: usize> {
 }
 
 impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
+    pub fn flush_all(&mut self) {
+        self.db_io.flush_all();
+    }
+
+    #[inline]
+    pub fn table_path(&self, name: &str) -> String {
+        self.curr_db.clone() + "/" + name
+    }
     pub fn new() -> Self {
         // 1. create ./base ./global, if doesn't exist
         std::fs::create_dir_all(DATA_DIR.to_string() + "/global")
@@ -145,7 +152,7 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             .expect("Failed in writing to @database_map.json!");
     }
 
-    fn update_meta_json(&self) {
+    pub fn update_meta_json(&self) {
         let metajson_path = self.global_path.clone() + &self.curr_db + ".json";
         let mut metajson_file = OpenOptions::new()
             .write(true)
@@ -269,6 +276,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         // crate file, no extra info
 
         let table_path = self.curr_db.clone() + "/" + name;
+        // flush and clear cache to avoid writing back to a deleted file
+        self.db_io.flush_all();
+        self.db_io.invalidate_all();
         self.db_io
             .delete_file(&table_path, &resource::PageType::TABLE, "");
         self.metadata_map.remove(name);
@@ -290,8 +300,14 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         }
 
         let index_path = self.curr_db.clone() + "/" + name;
-        self.db_io
-            .delete_file(&index_path, &resource::PageType::TABLE, "");
+        // flush and clear cache to avoid stale index pages writing to removed file
+        self.db_io.flush_all();
+        self.db_io.invalidate_all();
+        self.db_io.delete_file(
+            &index_path,
+            &resource::PageType::INDEX,
+            &index_of_col.to_string(),
+        );
 
         table_metadata
             .mut_info
@@ -329,7 +345,8 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         }
 
         {
-            let mut tree = BPlusTree::new(&mut self.db_io, name, col_idx, col_type);
+            let table_path = self.table_path(name);
+            let mut tree = BPlusTree::new(&mut self.db_io, &table_path, col_idx, col_type);
             for (val, rid) in pending {
                 tree.insert(&val, rid)?;
             }
@@ -421,8 +438,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
             data_page_with_free_slot.set_slot_busy(item_id as usize);
         }
 
+        let table_path = self.table_path(name);
         for (col_idx, col_type, col_val) in index_updates {
-            let mut tree = BPlusTree::new(&mut self.db_io, name, col_idx, col_type);
+            let mut tree = BPlusTree::new(&mut self.db_io, &table_path, col_idx, col_type);
             tree.insert(&col_val, rid)?;
         }
 
@@ -471,8 +489,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
 
         // NOTE:
         // update B+tree
+        let table_path = self.table_path(name);
         for (col_idx, col_type, col_val) in index_updates {
-            let mut tree = BPlusTree::new(&mut self.db_io, name, col_idx, col_type);
+            let mut tree = BPlusTree::new(&mut self.db_io, &table_path, col_idx, col_type);
             tree.delete(col_val, rid)?;
         }
 
@@ -553,7 +572,8 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
 
         // NOTE: 对于修改的item, 使用B+树更新
         if has_index {
-            let mut tree = BPlusTree::new(&mut self.db_io, name, col_index, col_type);
+            let table_path = self.table_path(name);
+            let mut tree = BPlusTree::new(&mut self.db_io, &table_path, col_index, col_type);
             tree.delete(old_val, rid)?;
             tree.insert(&col_val, rid)?;
         }
@@ -682,7 +702,9 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         };
 
         if indexed {
-            let mut tree = BPlusTree::new(&mut self.db_io, name, col_index, col_type.clone());
+            let table_path = self.table_path(name);
+            let mut tree =
+                BPlusTree::new(&mut self.db_io, &table_path, col_index, col_type.clone());
             let res = match op {
                 FilterOp::Eq => {
                     tree.search_range(Bound::Inclusive(val.clone()), Bound::Inclusive(val))
@@ -786,6 +808,102 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
         Ok(rows)
     }
 
+    pub fn for_each_row<F>(
+        &mut self,
+        name: &str,
+        needed_cols: Option<&[usize]>,
+        mut f: F,
+    ) -> Result<(), String>
+    where
+        F: FnMut(&Vec<ColumnValue>) -> Result<(), String>,
+    {
+        let metadata = match self.metadata_map.get(name) {
+            Some(m) => m.clone(),
+            None => return Err("Table not found".to_string()),
+        };
+
+        for page_id in 0..metadata.mut_info.data_page_count {
+            let table_path = self.curr_db.clone() + "/" + name;
+
+            let page = self
+                .db_io
+                .get_page(&table_path, page_id, &resource::PageType::TABLE, "");
+            let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
+            for slot in 0..metadata.const_info.page_item_capacity {
+                if !table_page.check_slot_stat(slot) {
+                    continue;
+                }
+                let item = table_page.get_item(slot);
+                let mut row = Vec::with_capacity(
+                    needed_cols
+                        .map(|c| c.len())
+                        .unwrap_or(metadata.const_info.column_count),
+                );
+                if let Some(cols) = needed_cols {
+                    for &col_idx in cols {
+                        row.push(item.get_column_val(col_idx)?);
+                    }
+                } else {
+                    for col_idx in 0..metadata.const_info.column_count {
+                        row.push(item.get_column_val(col_idx)?);
+                    }
+                }
+                f(&row)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn for_each_row_with_rid<F>(
+        &mut self,
+        name: &str,
+        needed_cols: Option<&[usize]>,
+        mut f: F,
+    ) -> Result<(), String>
+    where
+        F: FnMut(RecordId, &Vec<ColumnValue>) -> Result<(), String>,
+    {
+        let metadata = match self.metadata_map.get(name) {
+            Some(m) => m.clone(),
+            None => return Err("Table not found".to_string()),
+        };
+
+        for page_id in 0..metadata.mut_info.data_page_count {
+            let table_path = self.curr_db.clone() + "/" + name;
+
+            let page = self
+                .db_io
+                .get_page(&table_path, page_id, &resource::PageType::TABLE, "");
+            let mut table_page = TablePage::new(&metadata.const_info, &mut page.data);
+            for slot in 0..metadata.const_info.page_item_capacity {
+                if !table_page.check_slot_stat(slot) {
+                    continue;
+                }
+                let item = table_page.get_item(slot);
+                let mut row = Vec::with_capacity(
+                    needed_cols
+                        .map(|c| c.len())
+                        .unwrap_or(metadata.const_info.column_count),
+                );
+                if let Some(cols) = needed_cols {
+                    for &col_idx in cols {
+                        row.push(item.get_column_val(col_idx)?);
+                    }
+                } else {
+                    for col_idx in 0..metadata.const_info.column_count {
+                        row.push(item.get_column_val(col_idx)?);
+                    }
+                }
+                let rid_val =
+                    (page_id * metadata.const_info.page_item_capacity + slot) as u32;
+                f(RecordId(rid_val), &row)?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn show_database(&self) {
         println!("DATABASES");
         for db in self.db_map.keys() {
@@ -806,10 +924,14 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
                 println!("Field,Type,Null,Default");
                 for i in 0..m.const_info.column_count {
                     let col_name = m.const_info.column_name[i].clone();
+                    let tmps: String;
                     let col_type = match m.const_info.column_type[i] {
                         ColumnType::INT => "INT",
                         ColumnType::FLOAT => "FLOAT",
-                        ColumnType::CHAR(x) => &format!("VARCHAR({})", x).to_string(),
+                        ColumnType::CHAR(x) => {
+                            tmps = format!("VARCHAR({})", x);
+                            &tmps
+                        }
                     };
                     let mut can_be_null = match m.const_info.column_not_null[i] {
                         true => "NO",
@@ -930,77 +1052,78 @@ impl<const PAGE_NUM: usize> DBMS<PAGE_NUM> {
     // DEBUG:
     // print debug info
     // show the metadata of a table
-    pub fn show_table_metadata(&self, name: &str) {
-        let table_metadata = self.metadata_map.get(name).unwrap();
-        println!("--------------------------");
-        println!("{}: {}", "TableName".blue().bold(), name);
-        println!(
-            "{}: {}",
-            "data_page_count".purple(),
-            table_metadata.mut_info.data_page_count
-        );
-        println!(
-            "{}: {}",
-            "item_size".yellow(),
-            table_metadata.const_info.item_size
-        );
-        println!(
-            "{}: {}",
-            "page_item_capacity".green(),
-            table_metadata.const_info.page_item_capacity
-        );
-        println!(
-            "{}: {}",
-            "next_free_slot".red(),
-            table_metadata.mut_info.next_free_slot.get()
-        );
-        println!("--------------------------");
-    }
-
-    pub fn show_next_free_slot(&self, name: &str) {
-        let table_metadata = self.metadata_map.get(name).unwrap();
-        println!(
-            "{}: {}",
-            "next_free_slot".red(),
-            table_metadata.mut_info.next_free_slot.get()
-        );
-        println!("--------------------------");
-    }
-    pub fn show_table_page(&mut self, name: &str, page_id: usize) {
-        let table_metadata = self.metadata_map.get(name).unwrap();
-        let page_capacity = table_metadata.const_info.page_item_capacity;
-
-        let table_path = self.curr_db.clone() + "/" + name;
-
-        let target_page = self.db_io.get_page(
-            &table_path,
-            page_id as usize,
-            &resource::PageType::TABLE,
-            "",
-        );
-
-        // lazy delete
-        let target_data_page =
-            &mut TablePage::new(&table_metadata.const_info, &mut target_page.data);
-
-        println!("<###############################");
-        println!("{}: {}", "TableName".blue().bold(), name);
-        println!("{}: {}", "Page".yellow().bold(), page_id);
-        for i in 0..page_capacity {
-            println!("-------- slot {} --------", i.to_string().purple());
-            let validate = if target_data_page.check_slot_stat(i) {
-                1
-            } else {
-                0
-            };
-            println!("validate: {}", validate);
-
-            let item = target_data_page.get_item(i);
-            let item_data = &item.item_data;
-            println!("data: {}", item_data.encode_hex::<String>());
-            let item_info = &item.get_next_free_slot().get();
-            println!("next_free_slot: {:x}", item_info);
-        }
-        println!("###############################>");
-    }
+    //
+    // pub fn show_table_metadata(&self, name: &str) {
+    //     let table_metadata = self.metadata_map.get(name).unwrap();
+    //     println!("--------------------------");
+    //     println!("{}: {}", "TableName".blue().bold(), name);
+    //     println!(
+    //         "{}: {}",
+    //         "data_page_count".purple(),
+    //         table_metadata.mut_info.data_page_count
+    //     );
+    //     println!(
+    //         "{}: {}",
+    //         "item_size".yellow(),
+    //         table_metadata.const_info.item_size
+    //     );
+    //     println!(
+    //         "{}: {}",
+    //         "page_item_capacity".green(),
+    //         table_metadata.const_info.page_item_capacity
+    //     );
+    //     println!(
+    //         "{}: {}",
+    //         "next_free_slot".red(),
+    //         table_metadata.mut_info.next_free_slot.get()
+    //     );
+    //     println!("--------------------------");
+    // }
+    //
+    // pub fn show_next_free_slot(&self, name: &str) {
+    //     let table_metadata = self.metadata_map.get(name).unwrap();
+    //     println!(
+    //         "{}: {}",
+    //         "next_free_slot".red(),
+    //         table_metadata.mut_info.next_free_slot.get()
+    //     );
+    //     println!("--------------------------");
+    // }
+    // pub fn show_table_page(&mut self, name: &str, page_id: usize) {
+    //     let table_metadata = self.metadata_map.get(name).unwrap();
+    //     let page_capacity = table_metadata.const_info.page_item_capacity;
+    //
+    //     let table_path = self.curr_db.clone() + "/" + name;
+    //
+    //     let target_page = self.db_io.get_page(
+    //         &table_path,
+    //         page_id as usize,
+    //         &resource::PageType::TABLE,
+    //         "",
+    //     );
+    //
+    //     // lazy delete
+    //     let target_data_page =
+    //         &mut TablePage::new(&table_metadata.const_info, &mut target_page.data);
+    //
+    //     println!("<###############################");
+    //     println!("{}: {}", "TableName".blue().bold(), name);
+    //     println!("{}: {}", "Page".yellow().bold(), page_id);
+    //     for i in 0..page_capacity {
+    //         println!("-------- slot {} --------", i.to_string().purple());
+    //         let validate = if target_data_page.check_slot_stat(i) {
+    //             1
+    //         } else {
+    //             0
+    //         };
+    //         println!("validate: {}", validate);
+    //
+    //         let item = target_data_page.get_item(i);
+    //         let item_data = &item.item_data;
+    //         println!("data: {}", item_data.encode_hex::<String>());
+    //         let item_info = &item.get_next_free_slot().get();
+    //         println!("next_free_slot: {:x}", item_info);
+    //     }
+    //     println!("###############################>");
+    // }
 }

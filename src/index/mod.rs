@@ -14,7 +14,7 @@ pub mod node;
 // ====================== B+ Tree ===========================
 pub struct BPlusTree<'a, const PAGE_NUM: usize> {
     buf: &'a mut CacheBuf<PAGE_NUM>,
-    table_name: &'a str,
+    table_name: String,
     col_idx: usize,
     col_type: ColumnType,
     key_size: usize,
@@ -24,7 +24,7 @@ pub struct BPlusTree<'a, const PAGE_NUM: usize> {
 impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     pub fn new(
         buf: &'a mut CacheBuf<PAGE_NUM>,
-        table_name: &'a str,
+        table_name: &str,
         col_idx: usize,
         col_type: ColumnType,
     ) -> Self {
@@ -32,7 +32,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         let extra_info = col_idx.to_string();
         BPlusTree {
             buf,
-            table_name,
+            table_name: table_name.to_string(),
             col_idx,
             col_type,
             key_size,
@@ -45,7 +45,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     fn header_page(&mut self) -> HeaderPage<'_> {
         let header = self
             .buf
-            .get_page(self.table_name, 0, &PageType::INDEX, &self.extra_info);
+            .get_page(self.table_name.as_str(), 0, &PageType::INDEX, &self.extra_info);
         HeaderPage::new(header)
     }
 
@@ -116,7 +116,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         let mut current = root;
         loop {
             let node_page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 current as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -149,7 +149,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         loop {
             path.push(current);
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 current as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -188,7 +188,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         // TIP: 使用child block，将后续不会使用的变量释放，解决所有权问题
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 page_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -228,7 +228,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         let (move_buf, move_count, new_first_key, next_leaf);
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 page_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -253,7 +253,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let new_page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 new_page_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -282,7 +282,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     ) -> Result<Option<(Vec<u8>, u32)>, String> {
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 page_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -317,7 +317,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         let (promote_key, move_buf, move_count, first_child_right);
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 page_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -344,7 +344,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let new_page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 new_page_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -376,7 +376,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
             let root_id = self.alloc_page();
             {
                 let root_page = self.buf.get_page(
-                    self.table_name,
+                    self.table_name.as_str(),
                     root_id as usize,
                     &PageType::INDEX,
                     &self.extra_info,
@@ -419,7 +419,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         let new_root_id = self.alloc_page();
         {
             let new_root_page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 new_root_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -466,7 +466,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         let mut current = start_leaf;
         loop {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 current as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -529,7 +529,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         }
         let (leaf_id, _) = self.find_leaf(&key, root);
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             leaf_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -582,7 +582,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     fn fix_underflow(&mut self, parent_id: u32, child_id: u32) -> Result<(), String> {
         let node_type = {
             let child_page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 child_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -600,7 +600,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     fn fix_leaf_underflow(&mut self, parent_id: u32, child_id: u32) -> Result<(), String> {
         let (child_key_cnt, leaf_capacity) = {
             let child_page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 child_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -647,7 +647,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     fn fix_internal_underflow(&mut self, parent_id: u32, child_id: u32) -> Result<(), String> {
         let (child_keys_len, internal_capacity) = {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 child_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -703,7 +703,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         child_id: u32,
     ) -> Result<(Vec<u32>, usize), String> {
         let parent_page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             parent_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -721,7 +721,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
     fn leaf_key_count(&mut self, page_id: u32) -> Result<usize, String> {
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             page_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -735,7 +735,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
     fn internal_key_count(&mut self, page_id: u32) -> Result<usize, String> {
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             page_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -756,7 +756,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     ) -> Result<(), String> {
         let (borrow_key, borrow_rid) = {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 left_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -773,7 +773,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 child_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -789,7 +789,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 parent_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -812,7 +812,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     ) -> Result<(), String> {
         let (borrow_key, borrow_rid, new_sep) = {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 right_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -831,7 +831,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 child_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -846,7 +846,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 parent_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -869,7 +869,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     ) -> Result<(), String> {
         let (move_buf, move_cnt, next_leaf) = {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 child_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -887,7 +887,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 left_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -915,7 +915,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
     ) -> Result<(), String> {
         let (move_buf, move_cnt, next_leaf) = {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 right_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -933,7 +933,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 child_id as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -1036,7 +1036,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
     fn parent_key(&mut self, parent_id: u32, key_idx: usize) -> Result<Vec<u8>, String> {
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             parent_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -1048,7 +1048,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
     fn remove_parent_entry(&mut self, parent_id: u32, remove_idx: usize) -> Result<(), String> {
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             parent_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -1070,7 +1070,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         new_key: Vec<u8>,
     ) -> Result<(), String> {
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             parent_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -1084,12 +1084,9 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         Ok(())
     }
 
-    fn read_internal_page(
-        &mut self,
-        page_id: u32,
-    ) -> Result<(Vec<Vec<u8>>, Vec<u32>), String> {
+    fn read_internal_page(&mut self, page_id: u32) -> Result<(Vec<Vec<u8>>, Vec<u32>), String> {
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             page_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -1109,7 +1106,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
         children: Vec<u32>,
     ) -> Result<(), String> {
         let page = self.buf.get_page(
-            self.table_name,
+            self.table_name.as_str(),
             page_id as usize,
             &PageType::INDEX,
             &self.extra_info,
@@ -1153,7 +1150,7 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
 
         let (root_type, key_count, child0) = {
             let page = self.buf.get_page(
-                self.table_name,
+                self.table_name.as_str(),
                 root as usize,
                 &PageType::INDEX,
                 &self.extra_info,
@@ -1163,7 +1160,11 @@ impl<'a, const PAGE_NUM: usize> BPlusTree<'a, PAGE_NUM> {
                 NodeType::Leaf => return Ok(()),
                 NodeType::Internal => {
                     let inner = InnerNode::new(node);
-                    (NodeType::Internal, inner.key_count(), inner.internal_child_at(0))
+                    (
+                        NodeType::Internal,
+                        inner.key_count(),
+                        inner.internal_child_at(0),
+                    )
                 }
             }
         };

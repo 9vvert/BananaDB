@@ -1,0 +1,3677 @@
+[INFO] read 33 cases in total, 23 cases enabled
+[INFO] User program initializing...
+[INFO] User program initialized
+[INFO] Case system is running
+[INFO] User program starts
+DATABASES
+@SHOW DATABASES;
+@CREATE DATABASE DB;
+@CREATE DATABASE DB1;
+@CREATE DATABASE DB2;
+DATABASES
+DB
+DB1
+DB2
+@SHOW DATABASES;
+@USE DB;
+@USE DB2;
+@CREATE DATABASE DB3;
+DATABASES
+DB
+DB3
+DB1
+DB2
+@SHOW DATABASES;
+@DROP DATABASE DB1;
+DATABASES
+DB
+DB3
+DB2
+@SHOW DATABASES;
+[1m[32m[INFO] Case system passed[0m
+[INFO] Case table is running
+@USE DB;
+@CREATE TABLE TBL (a INT NOT NULL, b VARCHAR(16) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL2 (a INT NOT NULL, b VARCHAR(17) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL3 (a INT NOT NULL, b VARCHAR(18) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL4 (a INT NOT NULL, b VARCHAR(19) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL5 (a INT NOT NULL, b VARCHAR(20) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL6 (a INT NOT NULL, b VARCHAR(15) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL7 (a INT NOT NULL, b VARCHAR(14) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL8 (a INT NOT NULL, b VARCHAR(13) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL9 (a INT NOT NULL, b VARCHAR(12) NOT NULL, c FLOAT NOT NULL);
+@CREATE TABLE TBL10 (a INT NOT NULL, b VARCHAR(11) NOT NULL, c FLOAT NOT NULL);
+TABLES
+TBL4
+TBL8
+TBL10
+TBL9
+TBL5
+TBL3
+TBL6
+TBL
+TBL2
+TBL7
+@SHOW TABLES;
+Field,Type,Null,Default
+a,INT,NO,NULL
+b,VARCHAR(16),NO,NULL
+c,FLOAT,NO,NULL
+@DESC TBL;
+@DROP TABLE TBL5;
+@DROP TABLE TBL10;
+TABLES
+TBL4
+TBL8
+TBL9
+TBL3
+TBL6
+TBL
+TBL2
+TBL7
+@SHOW TABLES;
+[1m[32m[INFO] Case table passed[0m
+[INFO] Case table-data is running
+@CREATE DATABASE DATASET;
+@USE DATASET;
+@CREATE TABLE PART (P_PARTKEY INT, P_NAME VARCHAR(55), P_MFGR VARCHAR(25), P_BRAND VARCHAR(10), P_TYPE VARCHAR(25), P_SIZE INT, P_CONTAINER VARCHAR(10), P_RETAILPRICE FLOAT, P_COMMENT VARCHAR(23), PRIMARY KEY (P_PARTKEY));
+@CREATE TABLE REGION (R_REGIONKEY INT, R_NAME VARCHAR(25), R_COMMENT VARCHAR(152), PRIMARY KEY (R_REGIONKEY));
+@CREATE TABLE NATION (N_NATIONKEY INT, N_NAME VARCHAR(25), N_REGIONKEY INT NOT NULL, N_COMMENT VARCHAR(152), PRIMARY KEY (N_NATIONKEY), FOREIGN KEY (N_REGIONKEY) REFERENCES REGION(R_REGIONKEY));
+@CREATE TABLE SUPPLIER (S_SUPPKEY INT, S_NAME VARCHAR(25), S_ADDRESS VARCHAR(40),S_NATIONKEY INT NOT NULL, S_PHONE VARCHAR(15), S_ACCTBAL FLOAT, S_COMMENT VARCHAR(101), PRIMARY KEY (S_SUPPKEY), FOREIGN KEY (S_NATIONKEY) REFERENCES NATION(N_NATIONKEY));
+@CREATE TABLE CUSTOMER (C_CUSTKEY INT, C_NAME VARCHAR(25), C_ADDRESS VARCHAR(40), C_NATIONKEY INT NOT NULL, C_PHONE VARCHAR(15), C_ACCTBAL FLOAT, C_MKTSEGMENT VARCHAR(10), C_COMMENT VARCHAR(117), PRIMARY KEY (C_CUSTKEY), FOREIGN KEY (C_NATIONKEY) REFERENCES NATION(N_NATIONKEY));
+@CREATE TABLE PARTSUPP (PS_PARTKEY INT NOT NULL, PS_SUPPKEY INT NOT NULL, PS_AVAILQTY INT, PS_SUPPLYCOST FLOAT, PS_COMMENT VARCHAR(199), PRIMARY KEY (PS_PARTKEY, PS_SUPPKEY), FOREIGN KEY (PS_PARTKEY) REFERENCES PART(P_PARTKEY), FOREIGN KEY (PS_SUPPKEY) REFERENCES SUPPLIER(S_SUPPKEY));
+@CREATE TABLE ORDERS (O_ORDERKEY INT, O_CUSTKEY INT NOT NULL, O_ORDERSTATUS VARCHAR(1), O_TOTALPRICE FLOAT, O_ORDERPRIORITY VARCHAR(15), O_CLERK VARCHAR(15), O_SHIPPRIORITY INT, O_COMMENT VARCHAR(79), PRIMARY KEY (O_ORDERKEY), FOREIGN KEY (O_CUSTKEY) REFERENCES CUSTOMER(C_CUSTKEY));
+@CREATE TABLE LINEITEM (L_ORDERKEY INT NOT NULL, L_PARTKEY INT NOT NULL, L_SUPPKEY INT NOT NULL, L_LINENUMBER INT, L_QUANTITY FLOAT, L_EXTENDEDPRICE FLOAT, L_DISCOUNT FLOAT, L_TAX FLOAT,  L_RETURNFLAG VARCHAR(1), L_LINESTATUS VARCHAR(1), L_SHIPINSTRUCT VARCHAR(25), L_SHIPMODE VARCHAR(10), L_COMMENT VARCHAR(44), PRIMARY KEY (L_ORDERKEY, L_LINENUMBER), FOREIGN KEY (L_ORDERKEY) REFERENCES ORDERS(O_ORDERKEY), FOREIGN KEY (L_PARTKEY,L_SUPPKEY) REFERENCES PARTSUPP(PS_PARTKEY,PS_SUPPKEY));
+TABLES
+ORDERS
+PARTSUPP
+LINEITEM
+PART
+CUSTOMER
+SUPPLIER
+NATION
+REGION
+@SHOW TABLES;
+Field,Type,Null,Default
+P_PARTKEY,INT,NO,NULL
+P_NAME,VARCHAR(55),YES,NULL
+P_MFGR,VARCHAR(25),YES,NULL
+P_BRAND,VARCHAR(10),YES,NULL
+P_TYPE,VARCHAR(25),YES,NULL
+P_SIZE,INT,YES,NULL
+P_CONTAINER,VARCHAR(10),YES,NULL
+P_RETAILPRICE,FLOAT,YES,NULL
+P_COMMENT,VARCHAR(23),YES,NULL
+
+PRIMARY KEY (P_PARTKEY);
+@DESC PART;
+Field,Type,Null,Default
+R_REGIONKEY,INT,NO,NULL
+R_NAME,VARCHAR(25),YES,NULL
+R_COMMENT,VARCHAR(152),YES,NULL
+
+PRIMARY KEY (R_REGIONKEY);
+@DESC REGION;
+Field,Type,Null,Default
+N_NATIONKEY,INT,NO,NULL
+N_NAME,VARCHAR(25),YES,NULL
+N_REGIONKEY,INT,NO,NULL
+N_COMMENT,VARCHAR(152),YES,NULL
+
+PRIMARY KEY (N_NATIONKEY);
+FOREIGN KEY (N_REGIONKEY) REFERENCES REGION(R_REGIONKEY);
+@DESC NATION;
+Field,Type,Null,Default
+S_SUPPKEY,INT,NO,NULL
+S_NAME,VARCHAR(25),YES,NULL
+S_ADDRESS,VARCHAR(40),YES,NULL
+S_NATIONKEY,INT,NO,NULL
+S_PHONE,VARCHAR(15),YES,NULL
+S_ACCTBAL,FLOAT,YES,NULL
+S_COMMENT,VARCHAR(101),YES,NULL
+
+PRIMARY KEY (S_SUPPKEY);
+FOREIGN KEY (S_NATIONKEY) REFERENCES NATION(N_NATIONKEY);
+@DESC SUPPLIER;
+Field,Type,Null,Default
+C_CUSTKEY,INT,NO,NULL
+C_NAME,VARCHAR(25),YES,NULL
+C_ADDRESS,VARCHAR(40),YES,NULL
+C_NATIONKEY,INT,NO,NULL
+C_PHONE,VARCHAR(15),YES,NULL
+C_ACCTBAL,FLOAT,YES,NULL
+C_MKTSEGMENT,VARCHAR(10),YES,NULL
+C_COMMENT,VARCHAR(117),YES,NULL
+
+PRIMARY KEY (C_CUSTKEY);
+FOREIGN KEY (C_NATIONKEY) REFERENCES NATION(N_NATIONKEY);
+@DESC CUSTOMER;
+Field,Type,Null,Default
+PS_PARTKEY,INT,NO,NULL
+PS_SUPPKEY,INT,NO,NULL
+PS_AVAILQTY,INT,YES,NULL
+PS_SUPPLYCOST,FLOAT,YES,NULL
+PS_COMMENT,VARCHAR(199),YES,NULL
+
+PRIMARY KEY (PS_PARTKEY, PS_SUPPKEY);
+FOREIGN KEY (PS_PARTKEY) REFERENCES PART(P_PARTKEY);
+FOREIGN KEY (PS_SUPPKEY) REFERENCES SUPPLIER(S_SUPPKEY);
+@DESC PARTSUPP;
+Field,Type,Null,Default
+O_ORDERKEY,INT,NO,NULL
+O_CUSTKEY,INT,NO,NULL
+O_ORDERSTATUS,VARCHAR(1),YES,NULL
+O_TOTALPRICE,FLOAT,YES,NULL
+O_ORDERPRIORITY,VARCHAR(15),YES,NULL
+O_CLERK,VARCHAR(15),YES,NULL
+O_SHIPPRIORITY,INT,YES,NULL
+O_COMMENT,VARCHAR(79),YES,NULL
+
+PRIMARY KEY (O_ORDERKEY);
+FOREIGN KEY (O_CUSTKEY) REFERENCES CUSTOMER(C_CUSTKEY);
+@DESC ORDERS;
+Field,Type,Null,Default
+L_ORDERKEY,INT,NO,NULL
+L_PARTKEY,INT,NO,NULL
+L_SUPPKEY,INT,NO,NULL
+L_LINENUMBER,INT,NO,NULL
+L_QUANTITY,FLOAT,YES,NULL
+L_EXTENDEDPRICE,FLOAT,YES,NULL
+L_DISCOUNT,FLOAT,YES,NULL
+L_TAX,FLOAT,YES,NULL
+L_RETURNFLAG,VARCHAR(1),YES,NULL
+L_LINESTATUS,VARCHAR(1),YES,NULL
+L_SHIPINSTRUCT,VARCHAR(25),YES,NULL
+L_SHIPMODE,VARCHAR(10),YES,NULL
+L_COMMENT,VARCHAR(44),YES,NULL
+
+PRIMARY KEY (L_ORDERKEY, L_LINENUMBER);
+FOREIGN KEY (L_ORDERKEY) REFERENCES ORDERS(O_ORDERKEY);
+FOREIGN KEY (L_PARTKEY, L_SUPPKEY) REFERENCES PARTSUPP(PS_PARTKEY, PS_SUPPKEY);
+@DESC LINEITEM;
+[1m[32m[INFO] Case table-data passed[0m
+[INFO] Case data is running
+@USE DATASET;
+rows
+60000
+@LOAD DATA INFILE '/mnt/data/part.csv' INTO TABLE PART FIELDS TERMINATED BY ',';
+rows
+5
+@LOAD DATA INFILE '/mnt/data/region.csv' INTO TABLE REGION FIELDS TERMINATED BY ',';
+rows
+25
+@LOAD DATA INFILE '/mnt/data/nation.csv' INTO TABLE NATION FIELDS TERMINATED BY ',';
+rows
+3000
+@LOAD DATA INFILE '/mnt/data/supplier.csv' INTO TABLE SUPPLIER FIELDS TERMINATED BY ',';
+rows
+45000
+@LOAD DATA INFILE '/mnt/data/customer.csv' INTO TABLE CUSTOMER FIELDS TERMINATED BY ',';
+rows
+240000
+@LOAD DATA INFILE '/mnt/data/partsupp.csv' INTO TABLE PARTSUPP FIELDS TERMINATED BY ',';
+rows
+450000
+@LOAD DATA INFILE '/mnt/data/orders.csv' INTO TABLE ORDERS FIELDS TERMINATED BY ',';
+rows
+1800093
+@LOAD DATA INFILE '/mnt/data/lineitem.csv' INTO TABLE LINEITEM FIELDS TERMINATED BY ',';
+[1m[32m[INFO] Case data passed[0m
+[INFO] Case query-data-b is running
+@USE DATASET;
+rows
+5
+@INSERT INTO PART VALUES (60001, 'anything', 'Manufacturer#5', 'Brand#28', 'PROMO PLATED COPPER', 34, 'JUST WORD', 1364.23, 'SOMETHING'), (60002, 'anything', 'Manufacturer#1', 'Brand#12', 'PROMO PLATED COPPER', 34, 'JUST WORD', 1364.23, 'SOMETHING'), (60003, 'anything', 'Manufacturer#7', 'Brand#39', 'PROMO PLATED COPPER', 34, 'JUST WORD', 1525.23, 'SOMETHING'), (60004, 'anything', 'Manufacturer#5', 'Brand#21', 'PROMO PLATED COPPER', 34, 'JUST WORD', 1743.13, 'SOMETHING'),(60005, 'anything', 'Manufacturer#5', 'Brand#30', 'PROMO PLATED COPPER', 34, 'JUST WORD', 1636.35, 'SOMETHING');
+P_PARTKEY,P_NAME,P_MFGR,P_BRAND,P_TYPE,P_SIZE,P_CONTAINER,P_RETAILPRICE,P_COMMENT
+60005,anything,Manufacturer#5,Brand#30,PROMO PLATED COPPER,34,JUST WORD,1636.35,SOMETHING
+@SELECT * FROM PART WHERE P_BRAND = 'Brand#30';
+P_PARTKEY,P_BRAND,P_RETAILPRICE
+60001,Brand#28,1364.23
+60005,Brand#30,1636.35
+@SELECT P_PARTKEY, P_BRAND, P_RETAILPRICE FROM PART WHERE P_BRAND >= 'Brand#271' AND P_BRAND <= 'Brand#300';
+P_SIZE,P_PARTKEY,P_NAME
+50,1213,sandy khaki smoke puff forest
+50,2956,blue light burnished purple indian
+50,4259,misty peru mint cornflower green
+50,5330,drab peru ivory forest light
+50,6638,sandy antique cornflower dim honeydew
+50,7224,smoke turquoise medium seashell rose
+50,7598,floral blanched cornsilk lace slate
+50,8048,steel slate dim lemon cream
+50,8688,green navajo deep medium frosted
+50,8990,bisque maroon metallic magenta salmon
+50,9730,blue coral lavender navajo frosted
+50,9899,honeydew sienna steel thistle moccasin
+50,12723,lace plum salmon linen blue
+50,16634,saddle aquamarine mint lawn burlywood
+50,16834,misty salmon frosted dim pale
+50,20547,lawn hot smoke green sky
+50,21517,blue khaki indian goldenrod puff
+50,22541,thistle turquoise white seashell burlywood
+50,25241,blue grey cyan navajo rose
+50,27434,deep sandy salmon ghost indian
+50,28789,burlywood white bisque coral papaya
+50,29166,ghost midnight steel mint forest
+50,30537,chiffon forest navy sienna honeydew
+50,31218,grey violet floral lace thistle
+50,33603,orchid honeydew navy antique violet
+50,36901,puff forest plum beige burnished
+50,36994,brown slate blue dim rose
+50,38440,sienna deep goldenrod forest azure
+50,38741,cornsilk sandy chocolate salmon goldenrod
+50,39096,peach lemon mint white green
+50,39410,frosted aquamarine indian lemon dodger
+50,42310,violet gainsboro frosted azure blue
+50,43134,salmon royal frosted grey floral
+50,43366,steel misty red azure peru
+50,43679,forest maroon peru turquoise lemon
+50,44237,burnished hot forest black peru
+50,44316,spring pale peru cornflower tomato
+50,44584,peach orchid chiffon sky black
+50,44730,navajo plum dodger peru spring
+50,46479,sienna wheat burnished lavender red
+50,51778,midnight peach misty saddle brown
+50,53255,yellow metallic thistle coral gainsboro
+50,56502,burlywood wheat brown peru rose
+50,59385,olive seashell honeydew royal thistle
+50,59918,blue chocolate cream steel orchid
+@SELECT P_SIZE, P_PARTKEY, P_NAME FROM PART WHERE P_BRAND = 'Brand#13' AND P_SIZE > 49;
+P_PARTKEY,P_NAME,P_MFGR,P_BRAND,P_TYPE,P_SIZE,P_CONTAINER,P_RETAILPRICE,P_COMMENT
+625,beige indian lime sienna plum,Manufacturer#3,Brand#35,SMALL PLATED COPPER,38,LG JAR,1525.62,blithely slow multipl
+1624,smoke firebrick blue seashell red,Manufacturer#4,Brand#44,LARGE ANODIZED BRASS,19,LG PKG,1525.62,y slyly thin fo
+2623,ghost salmon sienna metallic papaya,Manufacturer#1,Brand#14,STANDARD BURNISHED TIN,42,WRAP CAN,1525.62,fluffily fur
+3622,puff beige maroon salmon chartreuse,Manufacturer#5,Brand#55,STANDARD POLISHED TIN,50,MED JAR,1525.62,mong 
+4621,blanched navajo cyan tan coral,Manufacturer#2,Brand#23,MEDIUM BURNISHED BRASS,21,WRAP CAN,1525.62, furiously unusual pl
+5620,medium navajo chiffon blanched misty,Manufacturer#4,Brand#44,PROMO ANODIZED BRASS,1,SM CAN,1525.62,gular ideas det
+6619,violet frosted medium ivory cornsilk,Manufacturer#2,Brand#22,LARGE ANODIZED COPPER,21,JUMBO BOX,1525.61,s hang bli
+7618,gainsboro blue white yellow blanched,Manufacturer#5,Brand#54,ECONOMY ANODIZED COPPER,9,JUMBO PKG,1525.61,bits a
+8617,metallic seashell chocolate tomato forest,Manufacturer#1,Brand#12,PROMO ANODIZED TIN,31,SM PKG,1525.61,pending foxes 
+9616,almond linen frosted drab tan,Manufacturer#3,Brand#34,SMALL ANODIZED STEEL,3,MED DRUM,1525.61,warhorses haggle fu
+10615,chocolate blanched lavender bisque grey,Manufacturer#5,Brand#53,LARGE POLISHED STEEL,36,LG BAG,1525.61,blithely bold ins
+11614,violet gainsboro lime midnight indian,Manufacturer#1,Brand#14,SMALL POLISHED TIN,7,SM CASE,1525.61,quietly pending th
+12613,burnished snow azure powder chiffon,Manufacturer#4,Brand#43,PROMO PLATED TIN,22,MED PKG,1525.61,ilent orbi
+13612,powder drab red saddle burnished,Manufacturer#1,Brand#11,ECONOMY PLATED TIN,22,WRAP CAN,1525.61,ronic wate
+14611,navy moccasin sandy honeydew aquamarine,Manufacturer#1,Brand#15,MEDIUM BRUSHED BRASS,26,SM BOX,1525.61,rding to the slyly r
+15610,red purple powder aquamarine olive,Manufacturer#4,Brand#45,SMALL ANODIZED NICKEL,21,MED CAN,1525.61, carefull
+16609,frosted lawn floral turquoise navy,Manufacturer#2,Brand#22,SMALL POLISHED NICKEL,29,SM BAG,1525.60,s dou
+17608,midnight spring blue lawn chartreuse,Manufacturer#4,Brand#44,PROMO ANODIZED TIN,15,LG DRUM,1525.60,yly regular dolph
+18607,coral lawn magenta dim lime,Manufacturer#4,Brand#45,LARGE PLATED BRASS,38,SM PKG,1525.60,p sly
+19606,misty thistle red green peru,Manufacturer#3,Brand#34,LARGE ANODIZED COPPER,26,WRAP CAN,1525.60,y express gift
+20605,powder forest lime aquamarine burnished,Manufacturer#1,Brand#11,STANDARD PLATED NICKEL,40,LG JAR,1525.60,foxes a
+21604,navajo slate firebrick sienna linen,Manufacturer#2,Brand#21,PROMO ANODIZED STEEL,50,SM PACK,1525.60,blithely bo
+22603,lawn hot olive tan lemon,Manufacturer#1,Brand#11,STANDARD ANODIZED STEEL,7,MED DRUM,1525.60, expre
+23602,blush turquoise spring chiffon tan,Manufacturer#1,Brand#13,PROMO POLISHED NICKEL,43,WRAP CASE,1525.60,kages. final dep
+24601,chiffon cornflower cream papaya powder,Manufacturer#4,Brand#42,LARGE BRUSHED COPPER,17,LG CAN,1525.60,bout the frets. busil
+25600,cornsilk navajo khaki powder olive,Manufacturer#2,Brand#25,MEDIUM ANODIZED COPPER,34,MED CAN,1525.60,y ironic
+26599,lime deep navy indian tan,Manufacturer#3,Brand#33,LARGE BURNISHED COPPER,46,JUMBO BAG,1525.59,al accounts are. senti
+27598,turquoise wheat maroon lemon coral,Manufacturer#5,Brand#54,LARGE BURNISHED STEEL,10,LG BAG,1525.59,. bold deposits s
+28597,cyan khaki powder red olive,Manufacturer#4,Brand#45,ECONOMY BURNISHED NICKEL,2,SM CAN,1525.59,thely final fo
+29596,blush turquoise rose burlywood magenta,Manufacturer#4,Brand#45,LARGE BURNISHED COPPER,22,JUMBO BOX,1525.59,counts sleep 
+30595,lime slate tomato powder antique,Manufacturer#4,Brand#45,ECONOMY BURNISHED STEEL,50,JUMBO PACK,1525.59,lyly ironic dep
+31594,turquoise blue bisque violet red,Manufacturer#3,Brand#34,LARGE POLISHED BRASS,22,LG CAN,1525.59,packa
+32593,forest slate medium burlywood lemon,Manufacturer#5,Brand#52,PROMO BRUSHED BRASS,1,MED PKG,1525.59,s ideas. e
+33592,burlywood orange light bisque red,Manufacturer#3,Brand#33,STANDARD BRUSHED NICKEL,46,LG PACK,1525.59, furiously eve
+34591,lawn lace coral chartreuse goldenrod,Manufacturer#1,Brand#11,PROMO POLISHED COPPER,27,SM CASE,1525.59,e furiously sp
+35590,grey saddle pink medium sandy,Manufacturer#1,Brand#11,LARGE BURNISHED BRASS,19,JUMBO DRUM,1525.59, have to nag blithely
+36589,slate floral lavender dodger smoke,Manufacturer#3,Brand#32,MEDIUM PLATED STEEL,32,LG PKG,1525.58,uriously final re
+37588,tomato turquoise lace navajo puff,Manufacturer#3,Brand#31,STANDARD POLISHED TIN,8,WRAP BOX,1525.58,ess ideas
+38587,lawn floral smoke dodger ghost,Manufacturer#2,Brand#21,LARGE ANODIZED COPPER,7,SM DRUM,1525.58,le carefully slyly f
+39586,cream green brown lawn chartreuse,Manufacturer#5,Brand#52,STANDARD POLISHED BRASS,7,SM CAN,1525.58,lly slow 
+40585,dark puff navajo navy snow,Manufacturer#5,Brand#52,LARGE POLISHED BRASS,13,LG CAN,1525.58,e slyly
+41584,purple lime saddle coral olive,Manufacturer#1,Brand#13,MEDIUM PLATED BRASS,30,JUMBO CASE,1525.58,sits haggle according
+42583,sandy linen brown ivory navy,Manufacturer#2,Brand#24,PROMO ANODIZED NICKEL,2,SM BAG,1525.58, gifts c
+43582,khaki navajo grey bisque sandy,Manufacturer#1,Brand#14,ECONOMY BURNISHED TIN,46,LG DRUM,1525.58,nt packages.
+44581,ivory seashell burlywood antique ghost,Manufacturer#3,Brand#31,LARGE ANODIZED BRASS,14,SM DRUM,1525.58,he careful
+45580,tomato black royal chocolate medium,Manufacturer#2,Brand#24,STANDARD PLATED TIN,14,JUMBO JAR,1525.58,arefully e
+46579,ghost magenta hot dim blue,Manufacturer#2,Brand#21,PROMO PLATED BRASS,47,MED DRUM,1525.57, blithely. caref
+47578,lace slate green tan bisque,Manufacturer#3,Brand#34,SMALL PLATED BRASS,11,MED CASE,1525.57,yly even foxes are ca
+48577,peach saddle tan almond medium,Manufacturer#4,Brand#41,STANDARD PLATED TIN,41,WRAP PACK,1525.57,eas according to 
+49576,azure misty khaki slate orange,Manufacturer#4,Brand#41,LARGE ANODIZED BRASS,21,LG CAN,1525.57,sts acco
+50575,lime dim seashell burnished thistle,Manufacturer#5,Brand#55,ECONOMY BURNISHED NICKEL,35,SM JAR,1525.57,press deposits. plate
+51574,wheat firebrick dim mint peru,Manufacturer#4,Brand#44,LARGE POLISHED TIN,47,LG BAG,1525.57,ally regular dolphins.
+52573,yellow lemon coral white hot,Manufacturer#5,Brand#54,SMALL ANODIZED BRASS,12,SM JAR,1525.57,ipliers haggle. ideas 
+53572,orchid honeydew magenta rose brown,Manufacturer#1,Brand#15,STANDARD PLATED BRASS,11,LG PKG,1525.57,ng packages boost 
+54571,tan misty spring sandy blanched,Manufacturer#4,Brand#44,MEDIUM BRUSHED BRASS,8,MED JAR,1525.57,to beans 
+55570,metallic antique lime deep sky,Manufacturer#4,Brand#44,PROMO PLATED COPPER,49,SM DRUM,1525.57, requests. blithely r
+56569,chiffon puff rosy cream light,Manufacturer#2,Brand#24,MEDIUM BURNISHED BRASS,2,WRAP JAR,1525.56, fluffily 
+57568,saddle wheat plum linen burlywood,Manufacturer#4,Brand#42,LARGE BRUSHED TIN,24,LG PKG,1525.56,er furiously
+58567,tomato dodger orange sienna plum,Manufacturer#1,Brand#14,MEDIUM PLATED NICKEL,6,SM DRUM,1525.56,cross the deposits. ir
+59566,bisque hot drab burnished pink,Manufacturer#2,Brand#25,MEDIUM ANODIZED TIN,38,JUMBO CAN,1525.56, above the blithely r
+60003,anything,Manufacturer#7,Brand#39,PROMO PLATED COPPER,34,JUST WORD,1525.23,SOMETHING
+@SELECT * FROM PART WHERE P_RETAILPRICE > 1525.1 AND P_RETAILPRICE < 1525.9;
+rows
+1
+@DELETE FROM PART WHERE P_BRAND = 'Brand#30';
+P_BRAND
+Brand#28
+@SELECT P_BRAND FROM PART WHERE P_BRAND > 'Brand#27' AND P_BRAND < 'Brand#31';
+[1m[32m[INFO] Case query-data-b passed[0m
+[INFO] Case query-data-a is running
+@USE DATASET;
+R_REGIONKEY,R_NAME,R_COMMENT
+0,AFRICA,lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to 
+1,AMERICA,hs use ironic  even requests. s
+2,ASIA,ges. thinly even pinto beans ca
+3,EUROPE,ly final courts cajole furiously final excuse
+4,MIDDLE EAST,uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl
+@SELECT * FROM REGION;
+R_REGIONKEY,R_NAME,R_COMMENT
+1,AMERICA,hs use ironic  even requests. s
+@SELECT * FROM REGION WHERE REGION.R_REGIONKEY = 1;
+R_REGIONKEY
+2
+@SELECT R_REGIONKEY FROM REGION WHERE REGION.R_REGIONKEY < 3 AND REGION.R_REGIONKEY > 1;
+R_REGIONKEY
+@SELECT R_REGIONKEY FROM REGION WHERE REGION.R_REGIONKEY < 6 AND REGION.R_REGIONKEY > 1 AND REGION.R_NAME = 'AMERICA';
+S_SUPPKEY,S_ACCTBAL
+22,-966.20
+65,-963.79
+1458,-980.21
+1654,-988.37
+1764,-990.13
+1845,-971.99
+1870,-989.05
+1907,-987.45
+2908,-986.42
+@SELECT S_SUPPKEY, S_ACCTBAL FROM SUPPLIER WHERE SUPPLIER.S_ACCTBAL <= -963.2;
+L_PARTKEY,L_SUPPKEY,L_ORDERKEY,L_LINENUMBER,L_COMMENT
+6367,368,22950,1,ze through the un
+49910,1911,246694,2,ze fluffily. accounts across the fluff
+9217,2477,283492,3,zzle. carefully final packages detec
+4401,2904,293158,5,ze requests. ironic foxes 
+36050,51,314049,1,zzle against the unusual  final ac
+3691,1443,396261,1,ze across the regula
+24003,762,409348,2,zle furiously aroun
+4955,2707,528036,1,ze ironically? fluffily regular pack
+55581,2350,545606,3,ze from the furiously express pinto beans.
+44002,1295,604802,6,zzle slyly after the slyly pending deposits
+3210,2464,680357,4,ze slyly regular accounts. c
+41607,1897,933412,2,ze carefully abou
+10829,336,943840,1,zle above the blithely regular req
+3339,1091,1029157,3,zzle carefully slyly
+25212,1971,1069221,4,zle furiousl
+19215,1972,1082434,1,zzle carefully across the regular  
+13245,2000,1091588,2,ze carefully after the unusual foxes. 
+48871,1638,1363457,5,zle fluffi
+34669,953,1370913,2,ze blithely across the ironic  ironic p
+47915,681,1474663,2,ze blithely at the express  pendin
+51189,1724,1498370,2,zle fluffily. ironic dependencies 
+35564,1848,1521539,3,zzle slyly about the furiousl
+41932,696,1789830,1,ze according to the furiously r
+@SELECT L_PARTKEY, L_SUPPKEY, L_ORDERKEY, L_LINENUMBER, L_COMMENT FROM LINEITEM WHERE LINEITEM.L_QUANTITY > 5.1 AND LINEITEM.L_QUANTITY < 7.2 AND LINEITEM.L_COMMENT >= 'z';
+[1m[32m[INFO] Case query-data-a passed[0m
+[INFO] Case index-schema is running
+@USE DB;
+rows
+1
+@INSERT INTO TBL9 VALUES (1, '1', 1.0);
+rows
+5
+@INSERT INTO TBL9 VALUES (2, '2', 2.0), (3, '3', 3.0), (4, '4', 4.0), (5, '5', 5.0), (6, '6', 6.0);
+rows
+2
+@INSERT INTO TBL9 VALUES (2, '2', 2.0), (3, '3', 3.0);
+@ALTER TABLE TBL9 ADD INDEX idx_a(a);
+Field,Type,Null,Default
+a,INT,NO,NULL
+b,VARCHAR(12),NO,NULL
+c,FLOAT,NO,NULL
+
+INDEX (a);
+@DESC TBL9;
+a,b,c
+1,1,1.00
+2,2,2.00
+3,3,3.00
+4,4,4.00
+5,5,5.00
+6,6,6.00
+2,2,2.00
+3,3,3.00
+@SELECT * FROM TBL9;
+a,b,c
+4,4,4.00
+5,5,5.00
+6,6,6.00
+@SELECT * FROM TBL9 WHERE a > 3;
+a,b,c
+3,3,3.00
+3,3,3.00
+@SELECT * FROM TBL9 WHERE a = 3;
+a,b,c
+@SELECT * FROM TBL9 WHERE a < 3 AND a > 4;
+a,b,c
+@SELECT * FROM TBL9 WHERE a > 3 AND a < 4;
+rows
+5
+@INSERT INTO TBL9 VALUES (2, '2', 2.0), (3, '3', 3.0), (4, '4', 4.0), (5, '5', 5.0), (6, '6', 6.0);
+a,b,c
+3,3,3.00
+4,4,4.00
+5,5,5.00
+3,3,3.00
+3,3,3.00
+4,4,4.00
+5,5,5.00
+@SELECT * FROM TBL9 WHERE a > 2 AND a < 6;
+@ALTER TABLE TBL9 DROP INDEX idx_a;
+Field,Type,Null,Default
+a,INT,NO,NULL
+b,VARCHAR(12),NO,NULL
+c,FLOAT,NO,NULL
+@DESC TBL9;
+a,b,c
+3,3,3.00
+4,4,4.00
+5,5,5.00
+3,3,3.00
+3,3,3.00
+4,4,4.00
+5,5,5.00
+@SELECT * FROM TBL9 WHERE a > 2 AND a < 6;
+[1m[32m[INFO] Case index-schema passed[0m
+[INFO] Case index-data is running
+@USE DATASET;
+L_PARTKEY,L_SUPPKEY,L_ORDERKEY,L_LINENUMBER,L_COMMENT
+8,759,186275,5,yly against the express accounts. even re
+7,758,422529,2,y pending accounts impress acros
+4,2255,447108,6,zle enticingly toward the quickly silent 
+9,2260,538663,2,yly above the r
+8,2259,764166,5,y stealthy pinto
+1,2252,976196,2,y final pinto beans are sly
+8,9,1025575,1,ymptotes sleep final  unusua
+6,2257,1081381,6,y quickly regular asympto
+@SELECT L_PARTKEY, L_SUPPKEY, L_ORDERKEY, L_LINENUMBER, L_COMMENT FROM LINEITEM WHERE LINEITEM.L_PARTKEY < 10 AND LINEITEM.L_COMMENT >= 'y';
+L_PARTKEY,L_SUPPKEY,L_ORDERKEY,L_LINENUMBER,L_COMMENT
+8,759,186275,5,yly against the express accounts. even re
+10,2261,228033,4,y ironic sheaves nag carefully
+11,762,278528,4,y. furiously regular accounts hang about 
+7,758,422529,2,y pending accounts impress acros
+4,2255,447108,6,zle enticingly toward the quickly silent 
+9,2260,538663,2,yly above the r
+14,15,763462,1,y bold deposits. quickly final notorn
+8,2259,764166,5,y stealthy pinto
+10,2261,797286,3,y fluffily. regularly iro
+17,1518,841124,2,y final ideas caj
+1,2252,976196,2,y final pinto beans are sly
+8,9,1025575,1,ymptotes sleep final  unusua
+6,2257,1081381,6,y quickly regular asympto
+10,761,1086497,2,ymptotes according to the
+11,762,1356448,1,y special instructio
+11,762,1481478,3,y according to the quickly fi
+12,1513,1529286,1,y special de
+@SELECT L_PARTKEY, L_SUPPKEY, L_ORDERKEY, L_LINENUMBER, L_COMMENT FROM LINEITEM WHERE LINEITEM.L_PARTKEY < 20 AND LINEITEM.L_COMMENT >= 'y';
+L_PARTKEY,L_SUPPKEY,L_ORDERKEY,L_LINENUMBER,L_COMMENT
+8,759,186275,5,yly against the express accounts. even re
+7,758,422529,2,y pending accounts impress acros
+4,2255,447108,6,zle enticingly toward the quickly silent 
+9,2260,538663,2,yly above the r
+8,2259,764166,5,y stealthy pinto
+6,2257,967332,3,xpress foxes sleep against the bold ac
+1,2252,976196,2,y final pinto beans are sly
+8,9,1025575,1,ymptotes sleep final  unusua
+6,2257,1081381,6,y quickly regular asympto
+6,1507,1371938,2,xes wake pinto beans. regular  s
+6,757,1539109,1,xpress accounts. unusual acco
+@SELECT L_PARTKEY, L_SUPPKEY, L_ORDERKEY, L_LINENUMBER, L_COMMENT FROM LINEITEM WHERE LINEITEM.L_PARTKEY < 10 AND LINEITEM.L_COMMENT >= 'x';
+L_PARTKEY,L_SUPPKEY,L_ORDERKEY,L_LINENUMBER,L_COMMENT
+84,85,1287,3,ar packages. even  even
+92,1593,23493,2,ans according to the
+82,833,56933,2, are carefully quickly silent accounts
+96,1597,65568,2,. accounts sl
+83,84,79046,2, quickly furiously unusua
+98,99,81475,3,ar requests
+93,94,95169,2, silent packages: furiously ironic package
+88,2339,96133,5,  pending pinto beans are careful
+89,2340,150502,1, quickly bold foxe
+94,95,168965,3, the blithely fin
+95,2346,172583,2, carefully bold deposit
+87,88,177767,1, hockey players
+97,98,181028,1, besides the slyly regular packages nag bl
+82,1583,181092,1, ironic instr
+86,87,185351,1,al pinto beans are blithely 
+80,1581,194179,1, special  regula
+82,833,217478,1,al dependencies nag. sly
+85,86,241988,3, accounts. slyly
+84,85,242049,6,. regular packages
+80,2331,249603,5, cajole carefully blithely i
+91,842,268580,5, platelets nag 
+98,1599,270400,6,arefully ironic patterns along the
+93,1594,284387,6, sleep blithely alongside 
+86,1587,304737,1, dolphins sublate careful
+82,83,305668,2, above the packages: unusual  silent
+94,95,322050,6, fluffily. fluffily regular platelets are
+82,833,340802,5, beans cajole 
+98,1599,344291,2, accounts. blithe
+99,1600,345412,2, ironic packages above 
+92,93,357991,1,. carefully quick asympt
+93,1594,359559,2,  thin packages cajole carefully alongs
+95,846,396257,5,blithely regular asymptotes. carefully f
+87,838,402662,3, use quietly silent attainments
+89,1590,412230,1, excuses. requests h
+82,1583,413728,3,blithely unusual instructi
+86,837,415237,3,al requests w
+93,844,418178,1, the fluffil
+83,1584,424354,3, affix carefully according to the 
+80,81,431141,2, furiously express ex
+91,92,434822,2, furiously regul
+85,1586,441796,6,. carefully regular notornis haggle above 
+82,833,441952,1,. final deposits across th
+88,2339,446534,5,about the even requests. furiousl
+98,2349,449505,7, are. slyly re
+82,83,471974,3,ar accounts sub
+80,2331,494691,4, furiously special requests s
+83,2334,522373,1,ages. furiou
+85,86,522849,3,blithely across the 
+93,2344,523749,1,ans-- blithely ironic asymptot
+91,1592,533479,3, across the fluffily bra
+95,1596,541378,2,ans wake furiously. slyly bold requests
+88,89,547586,5,  final requests haggle fluffily. instructi
+82,1583,581925,1,. regular  regular pinto beans ab
+98,2349,597570,3, slyly busy packages. ironic pinto beans n
+97,1598,604293,1,ackages wake slyly special  even
+90,841,605888,3, foxes after the slyly unusual ideas
+86,1587,611846,2, courts. final  fin
+80,1581,627301,4, packages. furiously 
+88,839,632709,3,ar theodolites shall have to kindle blithel
+97,98,644036,2, regular ideas
+80,831,647234,1, quick requests cajole. slyly ironic requ
+92,93,713894,6,al  final ideas breach across the 
+91,2342,723782,2,. carefully special d
+85,836,731463,2, regular pinto be
+96,847,740964,5, express excuses cajole d
+85,86,743008,4, packages pr
+80,831,746947,1, quickly bold ideas on the 
+81,832,748192,1,blithely silent accounts. unusual  bold f
+84,1585,778789,2, regular deposits impres
+85,836,806373,5, ironic foxes. pending deposits boost. 
+81,82,815457,2,ard the blithely bold foxes nag across 
+91,1592,833344,3, packages haggle slyly 
+83,2334,875460,2,above the slyly regular req
+94,2345,875811,5, detect. regular ideas cajole flu
+96,1597,876769,5, express theodolites hagg
+80,1581,882756,3,ake quickly against the slyly 
+97,848,894949,3,against th
+94,845,902880,3,? slyly even
+89,90,915143,3, blithely ironic platelets around the fl
+98,99,925893,1, unusual dependencies. furiously 
+82,1583,941761,3, even accou
+84,835,974178,4,. even foxes sle
+86,1587,999682,4,. instructions cajole furious
+87,838,1001060,1,ach carefully above the regular dep
+99,100,1010663,1, deposits haggle blithely above the
+83,1584,1018465,4, requests. slyly final packages abo
+85,836,1025187,1, final packages wake
+88,1589,1035296,2, bold platelets. regular packa
+86,1587,1038338,6, blithely along the fur
+92,843,1042437,3, slyly express warthogs. spec
+91,1592,1046342,6, bold requests integrate. slyly fina
+89,90,1052644,6, deposits. ironic packages breach
+83,834,1062918,3, regular platelets sleep. ex
+97,848,1081795,4, the regular 
+83,1584,1085507,6, dugouts about
+90,2341,1095170,1,blithely accounts. final grouches sleep ac
+83,84,1096930,6,as. bold pinto beans impress qu
+85,86,1119617,2, packages. fluffily pending orbi
+94,95,1131648,1, ironic foxes unwind blithely s
+96,97,1132515,5, ironic hockey pla
+86,2337,1136800,4,against the blithely even requests 
+88,1589,1146339,2,al deposits cajole slyly re
+85,2336,1148293,1, stealthy depos
+93,1594,1150882,5,ake. special packages inside the c
+97,2348,1169123,4, waters wake slyly against the
+91,92,1199138,1, nag slyly around the furio
+84,835,1211297,3, furiously bold packages sleep c
+94,2345,1220642,2,  express theodolites hang special reques
+86,837,1224900,1, quick dolphins sleep. in
+83,84,1234243,1,bout the slyly ironic platelets. a
+86,837,1238244,2,. even theodolites lose slyly am
+93,94,1238983,2, to the carefully re
+96,847,1246245,3, even dependencies. slyly final inst
+83,2334,1248768,1, the gifts. dugouts affi
+99,850,1262595,3, furiously. instructio
+86,2337,1268064,3, the special foxes. un
+80,2331,1270178,3, of the slyly ironic deposi
+88,839,1276708,6, final plat
+93,94,1278343,2, are always si
+88,1589,1279939,1,al requests. final  even packa
+96,97,1288199,2, the furiously regular pinto bea
+93,1594,1302786,2, ironic pinto beans impress
+93,1594,1307264,3, quickly even 
+90,1591,1316454,3, requests affix: quickly even accounts caj
+81,82,1323428,2, ideas sleep furiously. carefully iro
+88,1589,1326336,5, slyly atop the silent accounts. final re
+98,1599,1334210,2, fluffily final
+99,2350,1356580,2,. blithely final pinto beans n
+98,849,1377668,4, with the quickl
+91,2342,1406624,5, bold theodolite
+91,92,1431074,5,ages sleep fluffily express depende
+81,82,1454595,3,ar  final grouch
+80,81,1483972,1,  blithe waters. request
+88,2339,1485221,2, ironic accounts 
+82,83,1539270,3, use to the furiousl
+80,1581,1539300,7, furiously. furiously pending inst
+94,845,1580515,4, blithely special ideas af
+83,2334,1581889,6,beans alongs
+87,1588,1587427,7, deposits. instr
+97,98,1597223,2,arefully express packages. sly
+84,2335,1600582,1, the pending deposits. quickly final inst
+81,82,1600710,3,ar packages cajole
+84,835,1616064,6, carefully about 
+88,2339,1621411,2, pending excuses are caref
+80,2331,1629253,4, ironic accounts detect blithely 
+80,2331,1632256,1, regular requests sleep furiously across th
+88,89,1649090,3,al theodolites unwind against the fu
+80,1581,1652353,6, even accounts use carefully reg
+85,836,1663621,1, of the fluffily ironic requests 
+93,1594,1671654,5, slyly busily express braids. closely thi
+81,2332,1701954,2,are furious
+86,87,1706370,3, serve carefull
+85,1586,1717057,3, asymptote
+91,2342,1732832,5, carefully regular th
+85,2336,1736256,1, tithes integrate qui
+86,87,1748001,1,arly ironic theodolites haggle quickly
+82,2333,1757633,2, slyly against the furiously final a
+@SELECT L_PARTKEY, L_SUPPKEY, L_ORDERKEY, L_LINENUMBER, L_COMMENT FROM LINEITEM WHERE LINEITEM.L_PARTKEY < 100 AND LINEITEM.L_PARTKEY >= 80 AND LINEITEM.L_COMMENT <= 'c';
+L_PARTKEY,L_SUPPKEY,L_ORDERKEY,L_LINENUMBER,L_COMMENT
+6,2257,12005,7, furiously express grouches sleep reg
+1,1502,16135,1,arefully regular packages haggle c
+8,759,101056,7, the blithely final accounts. silent
+7,8,159940,2, boldly silent asymptotes a
+6,1507,191074,1, bold ideas. furiously blithe instruction
+6,757,192224,1, asymptotes. boldly silent foxes alongside 
+8,759,203457,3, boost quickly even pinto beans! slyly s
+4,755,333888,5, furiously even platelet
+3,2254,341283,1,as nag according to the furiou
+2,3,378466,4,aggle carefully. slyly even excus
+5,2256,429157,1, quickly blithely
+9,10,456896,6, ironic notornis are slyly even
+8,2259,465220,1, braids wake. bl
+1,1502,480000,5,ages: special pinto bea
+3,2254,505280,4, regular pi
+9,760,536546,6, silent pinto beans. sometimes final 
+5,2256,627045,2, haggle. blithely even p
+4,5,637734,5,ages-- blithely unusual requests use. even 
+3,4,690788,2,ages are slyly.
+3,754,691264,2, believe above the even de
+3,754,696455,1, beans are carefully against the
+4,755,720065,1, according to the quiet pinto beans hag
+5,1506,727234,5,. deposits cajole across the ironic depe
+7,2258,729858,1,against the 
+2,753,760897,1, courts kindle slyly s
+8,759,776867,2,ag quickly
+4,755,798336,3, carefully pending instructions. qu
+6,1507,801762,1,accounts. furiously regular package
+4,5,840519,2,are fluffily. waters ma
+5,1506,851105,5,ays. dolphins boost. furiously regular acco
+1,2252,864452,6, regular deposits. furio
+9,1510,876867,5, even  express sentiments
+9,10,911424,1, excuses. deposits cajole alongside of the
+5,2256,960134,4, forges. quickly even ideas along t
+9,2260,997568,1, theodolites
+8,1509,1059076,5,are ruthlessly aft
+7,2258,1098692,3, use quickly furiously bol
+5,1506,1144162,3, furiously ironic de
+7,8,1181411,4, busy deposits. pendin
+8,9,1194279,1, instructions cajole. regular foxes
+1,2,1225698,5, believe blithely ironic
+8,2259,1236420,5,ally busy instructions across the carefull
+4,2255,1265574,1,  final excuses. blithely unusual a
+6,757,1267076,1,about the expre
+4,755,1269063,3,ages wake. slyly regular 
+6,1507,1311044,1, quickly blithely
+2,3,1393632,5, dolphins. even  even accou
+6,757,1418946,4,arefully. final  even in
+6,1507,1427335,3,. slyly pending dependencies
+9,2260,1501030,4, beans are. instructions accor
+2,1503,1518656,1, the slyly 
+9,10,1573281,4,accounts nag 
+3,2254,1616963,7, among the quickly bold pinto beans. caref
+9,10,1618626,1,. slyly special
+4,755,1622087,4, furiously ironic platelets.
+6,7,1634405,2, about the
+4,1505,1641093,5,. deposits alongside of the carefull
+6,1507,1648640,1, pending id
+4,5,1744097,2, after the instructions
+9,1510,1760577,5, wake furiously furiously 
+6,757,1772199,3, theodolites cajole slyly among the b
+4,755,1772514,6, daringly silent requests
+@SELECT L_PARTKEY, L_SUPPKEY, L_ORDERKEY, L_LINENUMBER, L_COMMENT FROM LINEITEM WHERE LINEITEM.L_PARTKEY < 10 AND LINEITEM.L_COMMENT <= 'b';
+rows
+5
+@INSERT INTO ORDERS VALUES (10, 100, 'F', 1234.5, '3-MDEIUM', 'Clerk#000000001', 0, 'nothing here'), (11, 101, 'F', 1234.5, '3-MDEIUM', 'Clerk#000000002', 0, 'nothing there'), (12, 102, 'F', 2234.5, '3-MDEIUM', 'Clerk#000000003', 0, 'still nothing'), (330, 303, 'O', 12346.5, '3-MDEIUM', 'Clerk#000000023', 0, 'nothing!'), (451000, 3246, 'F', 98765.5, '3-MDEIUM', 'Clerk#000003453', 0, 'wow');
+O_ORDERKEY,O_CUSTKEY,O_ORDERSTATUS,O_TOTALPRICE,O_ORDERPRIORITY,O_CLERK,O_SHIPPRIORITY,O_COMMENT
+6,16687,F,64263.31,4-NOT SPECIFIED,Clerk#000000058,0,ggle. special  final requests are against the furiously specia
+7,11741,O,261373.31,2-HIGH,Clerk#000000470,0,ly special requests 
+32,39019,O,182644.53,2-HIGH,Clerk#000000616,0,ise blithely bold  regular requests. quickly unusual dep
+33,20089,F,120387.78,3-MEDIUM,Clerk#000000409,0,uriously. furiously final request
+34,18301,O,68835.99,3-MEDIUM,Clerk#000000223,0,ly final packages. fluffily final deposits wake blithely ideas. spe
+35,38278,O,216801.97,4-NOT SPECIFIED,Clerk#000000259,0,zzle. carefully enticing deposits nag furio
+36,34576,O,71315.84,1-URGENT,Clerk#000000358,0, quick packages are blithely. slyly silent accounts wake qu
+37,25835,F,178653.65,3-MEDIUM,Clerk#000000456,0,kly regular pinto beans. carefully unusual waters cajole never
+38,37450,O,73448.81,4-NOT SPECIFIED,Clerk#000000604,0,haggle blithely. furiously express ideas haggle blithely furiously regular re
+39,24529,O,312608.40,3-MEDIUM,Clerk#000000659,0,ole express  ironic requests: ir
+10,100,F,1234.50,3-MDEIUM,Clerk#000000001,0,nothing here
+11,101,F,1234.50,3-MDEIUM,Clerk#000000002,0,nothing there
+12,102,F,2234.50,3-MDEIUM,Clerk#000000003,0,still nothing
+@SELECT * FROM ORDERS WHERE O_ORDERKEY > 5 AND O_ORDERKEY < 50;
+O_ORDERKEY,O_CUSTKEY,O_ORDERSTATUS,O_TOTALPRICE,O_ORDERPRIORITY,O_CLERK,O_SHIPPRIORITY,O_COMMENT
+450912,24685,O,85775.18,3-MEDIUM,Clerk#000000638,0,side the deposits. even ins
+450913,1027,O,61894.68,3-MEDIUM,Clerk#000000385,0, bold accounts was furiously idly express pinto bea
+450914,15878,O,101903.05,5-LOW,Clerk#000000306,0,ckages detect carefully during the pending  final instructions. final ins
+450915,1603,O,161677.13,5-LOW,Clerk#000000709,0,ng the special dependencies integr
+450916,24592,O,147924.20,5-LOW,Clerk#000000391,0,ole. pinto beans among the slyly ironic forges integrate carefully across th
+450917,10972,O,70279.69,5-LOW,Clerk#000000949,0,sly pending deposits sleep slyly even  special re
+450918,25784,O,114912.10,3-MEDIUM,Clerk#000000589,0,t slyly ironic decoys; requests cajole blithely spe
+450919,43666,F,191400.08,2-HIGH,Clerk#000000285,0,ounts. furiously regular forges haggle slyly
+450944,3718,O,244984.32,3-MEDIUM,Clerk#000000340,0,ickly express excuses according to the final theodolites boost regula
+450945,18350,O,118374.89,3-MEDIUM,Clerk#000000014,0,requests use blithely close deposits: ironic in
+450946,21859,O,195701.72,3-MEDIUM,Clerk#000000408,0,y against the quickly express Tiresias. finally express packages 
+450947,43907,F,135143.32,2-HIGH,Clerk#000000903,0,e to sleep bravely pending deposits: pending  ironic accounts could h
+450948,34247,F,202916.38,1-URGENT,Clerk#000000009,0,ven  even accounts. slyly express accounts are furiously along
+450949,33139,O,43875.42,2-HIGH,Clerk#000000140,0, foxes cajole quickly silent 
+450950,34297,O,3870.17,4-NOT SPECIFIED,Clerk#000000401,0,the carefully regular packages. furiously unusual requests sleep blithely. r
+450951,10787,O,68542.63,4-NOT SPECIFIED,Clerk#000000310,0,s use among the carefully regular foxes. express packages x-r
+450976,36940,O,243148.52,5-LOW,Clerk#000000897,0,ual pinto beans. regular  final as
+450977,44470,F,83424.53,5-LOW,Clerk#000000967,0,s ideas use alongside of the bravely s
+450978,17446,F,114151.89,4-NOT SPECIFIED,Clerk#000000566,0,l accounts. deposits nod slyly even ideas. bold  
+450979,6427,F,286336.71,4-NOT SPECIFIED,Clerk#000000550,0, beans. ruthlessly final foxes haggle requests. ir
+450980,17501,O,131195.14,3-MEDIUM,Clerk#000000701,0,ainments. ironic  even accounts cajole fluffily express requests. enti
+450981,11144,O,114187.55,1-URGENT,Clerk#000000768,0, beans nag slyly. slyly bold ideas nod after the blithel
+450982,136,F,163513.58,3-MEDIUM,Clerk#000000128,0,lyly ironic decoys. specia
+450983,21241,F,49284.64,4-NOT SPECIFIED,Clerk#000000209,0,uffily pending dolp
+451008,11233,O,174453.30,2-HIGH,Clerk#000000691,0,re quietly along the special packages. slyly ironic ideas boost bold ac
+451009,2461,O,194771.35,2-HIGH,Clerk#000000120,0,ons detect. quickly ironic a
+451010,42358,O,77440.90,4-NOT SPECIFIED,Clerk#000000101,0, final accounts above the even  regular asymptotes wake
+451011,41899,F,287759.61,5-LOW,Clerk#000000601,0, blithely-- furiously fi
+451012,10075,O,157827.65,4-NOT SPECIFIED,Clerk#000000654,0, brave foxes wake furiously above the ironic packages. slyly regular 
+451013,14339,F,195474.88,5-LOW,Clerk#000000384,0,kly final packages are carefully. ironic
+451014,8692,F,222391.92,3-MEDIUM,Clerk#000000245,0,he blithely express instructions shall nod furio
+451015,6406,F,121259.92,1-URGENT,Clerk#000000860,0, haggle blithely among the careful
+451040,20032,O,33310.40,1-URGENT,Clerk#000000354,0, special platelets sleep according to the quickly special accounts
+451041,17671,F,135458.35,3-MEDIUM,Clerk#000000498,0,ly furiously regular 
+451042,27044,F,94086.00,3-MEDIUM,Clerk#000000768,0, of the quickly pending deposits. carefully special dependencies wake sly
+451043,26467,F,89030.66,3-MEDIUM,Clerk#000000912,0,t blithely. furiously reg
+451044,22664,F,142674.70,3-MEDIUM,Clerk#000000929,0,ily ironic excuses. carefully reg
+451045,21625,F,200601.70,1-URGENT,Clerk#000000471,0,ckages. carefully ironic packages integrate. bold a
+451046,29512,F,232740.16,1-URGENT,Clerk#000000020,0,foxes sleep above the blithely ironic theodolites. closely sp
+451047,10955,F,101604.39,2-HIGH,Clerk#000000634,0, deposits according to the slyly unusual dolph
+451072,16738,O,289515.27,4-NOT SPECIFIED,Clerk#000000969,0, pending  final packages. flu
+451073,1318,O,132397.85,5-LOW,Clerk#000000751,0,n requests. bold instruct
+451074,26303,F,220296.11,2-HIGH,Clerk#000000452,0,ietly ironic decoys boost furiou
+451075,23612,O,131987.40,3-MEDIUM,Clerk#000000410,0,kages. express  unusual deposits integrate 
+451076,27848,F,210226.92,2-HIGH,Clerk#000000187,0,pliers was blithely furiously even f
+451077,31522,F,233154.16,1-URGENT,Clerk#000000532,0,ajole. accounts sublate blithel
+451078,1864,O,132555.57,3-MEDIUM,Clerk#000000011,0,xes haggle against the busily
+451079,40135,F,86042.76,4-NOT SPECIFIED,Clerk#000000895,0,nod. ironic Tiresias boost according 
+451104,39547,O,272243.17,4-NOT SPECIFIED,Clerk#000000282,0,y. regular  special instructions boost above the fluffily special T
+451105,36970,F,296679.19,2-HIGH,Clerk#000000802,0,l realms. quickly regular deposits haggle. dogged  
+451106,34664,F,100185.28,2-HIGH,Clerk#000000246,0, excuses. dependencies impress ca
+451107,16756,F,185158.60,5-LOW,Clerk#000000601,0,cial ideas. quickly bold foxes are. silently special
+451108,4855,O,40311.95,4-NOT SPECIFIED,Clerk#000000741,0,nly according to the slyly 
+451109,32680,F,121902.59,2-HIGH,Clerk#000000799,0,ual warhorses. slyly expres
+451110,13141,O,144893.06,1-URGENT,Clerk#000000023,0, doubt carefully. un
+451111,21715,O,195105.54,2-HIGH,Clerk#000000235,0, are finally brave packages. carefully ironic theodolites affix quickly
+451000,3246,F,98765.50,3-MDEIUM,Clerk#000003453,0,wow
+@SELECT * FROM ORDERS WHERE O_ORDERKEY >= 450900 AND O_ORDERKEY <= 451111;
+O_ORDERKEY,O_CUSTKEY,O_ORDERSTATUS,O_TOTALPRICE,O_ORDERPRIORITY,O_CLERK,O_SHIPPRIORITY,O_COMMENT
+123456,10249,F,58312.52,2-HIGH,Clerk#000000626,0,ronic  final packages. carefully even foxes boost slyly blith
+@SELECT * FROM ORDERS WHERE O_ORDERKEY = 123456;
+rows
+107
+@DELETE FROM LINEITEM WHERE L_ORDERKEY >= 450950 AND L_ORDERKEY < 451050;
+rows
+1
+@DELETE FROM ORDERS WHERE O_ORDERKEY = 451010;
+O_ORDERKEY,O_CUSTKEY,O_ORDERSTATUS,O_TOTALPRICE,O_ORDERPRIORITY,O_CLERK,O_SHIPPRIORITY,O_COMMENT
+451008,11233,O,174453.30,2-HIGH,Clerk#000000691,0,re quietly along the special packages. slyly ironic ideas boost bold ac
+451009,2461,O,194771.35,2-HIGH,Clerk#000000120,0,ons detect. quickly ironic a
+451000,3246,F,98765.50,3-MDEIUM,Clerk#000003453,0,wow
+@SELECT * FROM ORDERS WHERE O_ORDERKEY > 450990 AND O_ORDERKEY <= 451010;
+rows
+25
+@DELETE FROM ORDERS WHERE O_ORDERKEY > 450950 AND O_ORDERKEY < 451050;
+O_ORDERKEY,O_CUSTKEY,O_ORDERSTATUS,O_TOTALPRICE,O_ORDERPRIORITY,O_CLERK,O_SHIPPRIORITY,O_COMMENT
+450912,24685,O,85775.18,3-MEDIUM,Clerk#000000638,0,side the deposits. even ins
+450913,1027,O,61894.68,3-MEDIUM,Clerk#000000385,0, bold accounts was furiously idly express pinto bea
+450914,15878,O,101903.05,5-LOW,Clerk#000000306,0,ckages detect carefully during the pending  final instructions. final ins
+450915,1603,O,161677.13,5-LOW,Clerk#000000709,0,ng the special dependencies integr
+450916,24592,O,147924.20,5-LOW,Clerk#000000391,0,ole. pinto beans among the slyly ironic forges integrate carefully across th
+450917,10972,O,70279.69,5-LOW,Clerk#000000949,0,sly pending deposits sleep slyly even  special re
+450918,25784,O,114912.10,3-MEDIUM,Clerk#000000589,0,t slyly ironic decoys; requests cajole blithely spe
+450919,43666,F,191400.08,2-HIGH,Clerk#000000285,0,ounts. furiously regular forges haggle slyly
+450944,3718,O,244984.32,3-MEDIUM,Clerk#000000340,0,ickly express excuses according to the final theodolites boost regula
+450945,18350,O,118374.89,3-MEDIUM,Clerk#000000014,0,requests use blithely close deposits: ironic in
+450946,21859,O,195701.72,3-MEDIUM,Clerk#000000408,0,y against the quickly express Tiresias. finally express packages 
+450947,43907,F,135143.32,2-HIGH,Clerk#000000903,0,e to sleep bravely pending deposits: pending  ironic accounts could h
+450948,34247,F,202916.38,1-URGENT,Clerk#000000009,0,ven  even accounts. slyly express accounts are furiously along
+450949,33139,O,43875.42,2-HIGH,Clerk#000000140,0, foxes cajole quickly silent 
+450950,34297,O,3870.17,4-NOT SPECIFIED,Clerk#000000401,0,the carefully regular packages. furiously unusual requests sleep blithely. r
+451072,16738,O,289515.27,4-NOT SPECIFIED,Clerk#000000969,0, pending  final packages. flu
+451073,1318,O,132397.85,5-LOW,Clerk#000000751,0,n requests. bold instruct
+451074,26303,F,220296.11,2-HIGH,Clerk#000000452,0,ietly ironic decoys boost furiou
+451075,23612,O,131987.40,3-MEDIUM,Clerk#000000410,0,kages. express  unusual deposits integrate 
+451076,27848,F,210226.92,2-HIGH,Clerk#000000187,0,pliers was blithely furiously even f
+451077,31522,F,233154.16,1-URGENT,Clerk#000000532,0,ajole. accounts sublate blithel
+451078,1864,O,132555.57,3-MEDIUM,Clerk#000000011,0,xes haggle against the busily
+451079,40135,F,86042.76,4-NOT SPECIFIED,Clerk#000000895,0,nod. ironic Tiresias boost according 
+@SELECT * FROM ORDERS WHERE O_ORDERKEY >= 450900 AND O_ORDERKEY <= 451100;
+[1m[32m[INFO] Case index-data passed[0m
+[INFO] Case query-a is running
+@USE DB;
+a,b,c
+@SELECT * FROM TBL;
+rows
+1
+@INSERT INTO TBL VALUES (1, '1', 1.0);
+a,b,c
+1,1,1.00
+@SELECT * FROM TBL;
+rows
+5
+@INSERT INTO TBL VALUES (2, '2', 2.0), (3, '3', 3.0), (4, '4', 4.0), (5, '5', 5.0), (6, '6', 6.0);
+a,b,c
+1,1,1.00
+2,2,2.00
+3,3,3.00
+4,4,4.00
+5,5,5.00
+6,6,6.00
+@SELECT * FROM TBL WHERE TBL.a >= 0;
+rows
+2
+@INSERT INTO TBL VALUES (2, '2', 2.0), (3, '3', 3.0);
+a,b,c
+2,2,2.00
+3,3,3.00
+4,4,4.00
+5,5,5.00
+6,6,6.00
+2,2,2.00
+3,3,3.00
+@SELECT * FROM TBL WHERE TBL.a > 1;
+a,b,c
+1,1,1.00
+2,2,2.00
+3,3,3.00
+4,4,4.00
+5,5,5.00
+6,6,6.00
+2,2,2.00
+3,3,3.00
+@SELECT a, b, c FROM TBL;
+c,b,a
+1.00,1,1
+2.00,2,2
+3.00,3,3
+4.00,4,4
+5.00,5,5
+6.00,6,6
+2.00,2,2
+3.00,3,3
+@SELECT c, b, a FROM TBL;
+b,c
+1,1.00
+2,2.00
+3,3.00
+4,4.00
+5,5.00
+6,6.00
+2,2.00
+3,3.00
+@SELECT b, c FROM TBL;
+a,b,c
+4,4,4.00
+5,5,5.00
+@SELECT * FROM TBL WHERE TBL.a <= 5 AND TBL.a >= 4;
+c
+3.00
+3.00
+@SELECT c FROM TBL WHERE TBL.a < 5 AND TBL.b = '3';
+b
+1
+2
+5
+6
+2
+@SELECT b FROM TBL WHERE TBL.b <> '3' AND TBL.b <> '4';
+b
+4
+@SELECT b FROM TBL WHERE TBL.b <> '3' AND TBL.b = '4';
+a,b,c
+3,3,3.00
+4,4,4.00
+5,5,5.00
+6,6,6.00
+3,3,3.00
+@SELECT * FROM TBL WHERE TBL.c > 2.5;
+a,b,c
+1,1,1.00
+2,2,2.00
+2,2,2.00
+@SELECT * FROM TBL WHERE TBL.c < 3.0;
+a
+3
+4
+5
+6
+3
+@SELECT a FROM TBL WHERE TBL.b > '2';
+a
+@SELECT a FROM TBL WHERE TBL.b > '2' AND TBL.b < '3';
+[1m[32m[INFO] Case query-a passed[0m
+[INFO] Case query-b is running
+@USE DB;
+rows
+10
+@INSERT INTO TBL2 VALUES (697343901, '697343901', 697343901.0), (344283427, '344283427', 344283427.0), (1087340955, '1087340955', 1087340955.0), (1498336529, '1498336529', 1498336529.0), (477890433, '477890433', 477890433.0), (2034696316, '2034696316', 2034696316.0), (1877337388, '1877337388', 1877337388.0), (389948945, '389948945', 389948945.0), (1953674608, '1953674608', 1953674608.0), (490477005, '490477005', 490477005.0);
+a,b,c
+697343901,697343901,697343901.00
+344283427,344283427,344283427.00
+1087340955,1087340955,1087340955.00
+1498336529,1498336529,1498336529.00
+477890433,477890433,477890433.00
+2034696316,2034696316,2034696316.00
+1877337388,1877337388,1877337388.00
+389948945,389948945,389948945.00
+1953674608,1953674608,1953674608.00
+490477005,490477005,490477005.00
+@SELECT * FROM TBL2;
+rows
+1
+@INSERT INTO TBL2 VALUES (1259036334, '1259036334', 1259036334.0);
+rows
+2
+@INSERT INTO TBL2 VALUES (555933266, '555933266', 555933266.0), (1198864766, '1198864766', 1198864766.0);
+a,b,c
+697343901,697343901,697343901.00
+344283427,344283427,344283427.00
+1087340955,1087340955,1087340955.00
+1498336529,1498336529,1498336529.00
+477890433,477890433,477890433.00
+2034696316,2034696316,2034696316.00
+1877337388,1877337388,1877337388.00
+389948945,389948945,389948945.00
+1953674608,1953674608,1953674608.00
+490477005,490477005,490477005.00
+1259036334,1259036334,1259036334.00
+555933266,555933266,555933266.00
+1198864766,1198864766,1198864766.00
+@SELECT a, b, c FROM TBL2;
+rows
+8
+@INSERT INTO TBL2 VALUES (144487922, '144487922', 144487922.0), (284091002, '284091002', 284091002.0), (701315999, '701315999', 701315999.0), (972626580, '972626580', 972626580.0), (1929831165, '1929831165', 1929831165.0), (1197619510, '1197619510', 1197619510.0), (831216442, '831216442', 831216442.0), (2103683579, '2103683579', 2103683579.0);
+rows
+1
+@INSERT INTO TBL2 VALUES (619300098, '619300098', 619300098.0);
+c,b,a
+697343901.00,697343901,697343901
+344283427.00,344283427,344283427
+1087340955.00,1087340955,1087340955
+1498336529.00,1498336529,1498336529
+477890433.00,477890433,477890433
+2034696316.00,2034696316,2034696316
+1877337388.00,1877337388,1877337388
+389948945.00,389948945,389948945
+1953674608.00,1953674608,1953674608
+490477005.00,490477005,490477005
+1259036334.00,1259036334,1259036334
+555933266.00,555933266,555933266
+1198864766.00,1198864766,1198864766
+144487922.00,144487922,144487922
+284091002.00,284091002,284091002
+701315999.00,701315999,701315999
+972626580.00,972626580,972626580
+1929831165.00,1929831165,1929831165
+1197619510.00,1197619510,1197619510
+831216442.00,831216442,831216442
+2103683579.00,2103683579,2103683579
+619300098.00,619300098,619300098
+@SELECT c, b, a FROM TBL2;
+rows
+3
+@INSERT INTO TBL2 VALUES (954251939, '954251939', 954251939.0), (686305150, '686305150', 686305150.0), (635260078, '635260078', 635260078.0);
+b,c
+697343901,697343901.00
+344283427,344283427.00
+1087340955,1087340955.00
+1498336529,1498336529.00
+477890433,477890433.00
+2034696316,2034696316.00
+1877337388,1877337388.00
+389948945,389948945.00
+1953674608,1953674608.00
+490477005,490477005.00
+1259036334,1259036334.00
+555933266,555933266.00
+1198864766,1198864766.00
+144487922,144487922.00
+284091002,284091002.00
+701315999,701315999.00
+972626580,972626580.00
+1929831165,1929831165.00
+1197619510,1197619510.00
+831216442,831216442.00
+2103683579,2103683579.00
+619300098,619300098.00
+954251939,954251939.00
+686305150,686305150.00
+635260078,635260078.00
+@SELECT b, c FROM TBL2;
+rows
+9
+@INSERT INTO TBL2 VALUES (1027146003, '1027146003', 1027146003.0), (658947828, '658947828', 658947828.0), (877079400, '877079400', 877079400.0), (374400349, '374400349', 374400349.0), (1678533540, '1678533540', 1678533540.0), (106776217, '106776217', 106776217.0), (641930087, '641930087', 641930087.0), (822901073, '822901073', 822901073.0), (1368016979, '1368016979', 1368016979.0);
+rows
+4
+@INSERT INTO TBL2 VALUES (698840897, '698840897', 698840897.0), (1374382736, '1374382736', 1374382736.0), (2095680357, '2095680357', 2095680357.0), (676779605, '676779605', 676779605.0);
+c
+697343901.00
+344283427.00
+1087340955.00
+1498336529.00
+477890433.00
+2034696316.00
+1877337388.00
+389948945.00
+1953674608.00
+490477005.00
+1259036334.00
+555933266.00
+1198864766.00
+144487922.00
+284091002.00
+701315999.00
+972626580.00
+1929831165.00
+1197619510.00
+831216442.00
+2103683579.00
+619300098.00
+954251939.00
+686305150.00
+635260078.00
+1027146003.00
+658947828.00
+877079400.00
+374400349.00
+1678533540.00
+106776217.00
+641930087.00
+822901073.00
+1368016979.00
+698840897.00
+1374382736.00
+2095680357.00
+676779605.00
+@SELECT c FROM TBL2;
+rows
+1
+@INSERT INTO TBL2 VALUES (1534969924, '1534969924', 1534969924.0);
+rows
+1
+@INSERT INTO TBL2 VALUES (574150823, '574150823', 574150823.0);
+a,b,c
+697343901,697343901,697343901.00
+344283427,344283427,344283427.00
+1087340955,1087340955,1087340955.00
+1498336529,1498336529,1498336529.00
+477890433,477890433,477890433.00
+2034696316,2034696316,2034696316.00
+1877337388,1877337388,1877337388.00
+389948945,389948945,389948945.00
+1953674608,1953674608,1953674608.00
+490477005,490477005,490477005.00
+1259036334,1259036334,1259036334.00
+555933266,555933266,555933266.00
+1198864766,1198864766,1198864766.00
+144487922,144487922,144487922.00
+284091002,284091002,284091002.00
+701315999,701315999,701315999.00
+972626580,972626580,972626580.00
+1929831165,1929831165,1929831165.00
+1197619510,1197619510,1197619510.00
+831216442,831216442,831216442.00
+2103683579,2103683579,2103683579.00
+619300098,619300098,619300098.00
+954251939,954251939,954251939.00
+686305150,686305150,686305150.00
+635260078,635260078,635260078.00
+1027146003,1027146003,1027146003.00
+658947828,658947828,658947828.00
+877079400,877079400,877079400.00
+374400349,374400349,374400349.00
+1678533540,1678533540,1678533540.00
+106776217,106776217,106776217.00
+641930087,641930087,641930087.00
+822901073,822901073,822901073.00
+1368016979,1368016979,1368016979.00
+698840897,698840897,698840897.00
+1374382736,1374382736,1374382736.00
+2095680357,2095680357,2095680357.00
+676779605,676779605,676779605.00
+1534969924,1534969924,1534969924.00
+574150823,574150823,574150823.00
+@SELECT * FROM TBL2;
+[1m[32m[INFO] Case query-b passed[0m
+[INFO] Case join is running
+@USE DB;
+rows
+8
+@INSERT INTO TBL7 VALUES (1, '4', 3.0), (4, '5', 4.0), (1, '2', 2.0), (5, '1', 1.0), (3, '4', 2.0), (3, '1', 2.0), (5, '3', 2.0), (5, '5', 3.0);
+rows
+2
+@INSERT INTO TBL7 VALUES (3, '5', 4.0), (1, '5', 1.0);
+rows
+6
+@INSERT INTO TBL7 VALUES (5, '1', 1.0), (2, '5', 5.0), (1, '2', 3.0), (1, '3', 1.0), (1, '3', 2.0), (2, '2', 2.0);
+rows
+7
+@INSERT INTO TBL7 VALUES (3, '4', 3.0), (1, '1', 3.0), (2, '2', 1.0), (3, '3', 5.0), (3, '4', 1.0), (5, '4', 5.0), (4, '1', 2.0);
+rows
+4
+@INSERT INTO TBL7 VALUES (1, '1', 2.0), (5, '2', 2.0), (4, '4', 3.0), (4, '1', 3.0);
+rows
+7
+@INSERT INTO TBL7 VALUES (3, '5', 5.0), (3, '5', 4.0), (2, '1', 4.0), (3, '2', 3.0), (4, '3', 2.0), (4, '1', 4.0), (2, '5', 2.0);
+rows
+3
+@INSERT INTO TBL7 VALUES (5, '4', 5.0), (1, '2', 1.0), (3, '3', 2.0);
+rows
+6
+@INSERT INTO TBL7 VALUES (1, '3', 1.0), (4, '2', 3.0), (5, '2', 3.0), (5, '3', 3.0), (1, '4', 3.0), (3, '4', 5.0);
+rows
+6
+@INSERT INTO TBL7 VALUES (2, '2', 1.0), (1, '3', 2.0), (2, '1', 5.0), (4, '4', 3.0), (4, '3', 1.0), (2, '3', 5.0);
+rows
+3
+@INSERT INTO TBL7 VALUES (1, '2', 1.0), (3, '3', 3.0), (5, '5', 5.0);
+rows
+2
+@INSERT INTO TBL8 VALUES (3, '4', 4.0), (5, '3', 1.0);
+rows
+6
+@INSERT INTO TBL8 VALUES (5, '4', 3.0), (3, '5', 4.0), (4, '2', 3.0), (4, '5', 2.0), (5, '5', 3.0), (4, '2', 2.0);
+rows
+10
+@INSERT INTO TBL8 VALUES (3, '5', 4.0), (5, '4', 4.0), (3, '4', 4.0), (2, '3', 1.0), (5, '1', 1.0), (3, '2', 5.0), (5, '4', 5.0), (5, '3', 1.0), (1, '2', 5.0), (3, '2', 1.0);
+rows
+6
+@INSERT INTO TBL8 VALUES (3, '5', 4.0), (4, '4', 4.0), (2, '5', 4.0), (5, '3', 3.0), (4, '1', 1.0), (2, '3', 1.0);
+rows
+3
+@INSERT INTO TBL8 VALUES (2, '3', 4.0), (1, '2', 1.0), (1, '5', 3.0);
+rows
+5
+@INSERT INTO TBL8 VALUES (2, '4', 4.0), (3, '5', 1.0), (4, '3', 2.0), (2, '5', 3.0), (3, '3', 5.0);
+rows
+3
+@INSERT INTO TBL8 VALUES (5, '5', 3.0), (3, '3', 5.0), (4, '5', 1.0);
+rows
+7
+@INSERT INTO TBL8 VALUES (3, '1', 2.0), (4, '1', 2.0), (2, '2', 5.0), (4, '3', 1.0), (2, '4', 4.0), (1, '5', 2.0), (2, '3', 5.0);
+rows
+10
+@INSERT INTO TBL8 VALUES (1, '4', 1.0), (3, '3', 2.0), (2, '5', 1.0), (5, '5', 5.0), (3, '5', 3.0), (2, '4', 4.0), (5, '1', 4.0), (3, '1', 5.0), (5, '1', 1.0), (5, '2', 4.0);
+rows
+2
+@INSERT INTO TBL8 VALUES (4, '3', 5.0), (5, '1', 2.0);
+a,b,c
+1,4,3.00
+4,5,4.00
+1,2,2.00
+5,1,1.00
+3,4,2.00
+3,1,2.00
+5,3,2.00
+5,5,3.00
+3,5,4.00
+1,5,1.00
+5,1,1.00
+2,5,5.00
+1,2,3.00
+1,3,1.00
+1,3,2.00
+2,2,2.00
+3,4,3.00
+1,1,3.00
+2,2,1.00
+3,3,5.00
+3,4,1.00
+5,4,5.00
+4,1,2.00
+1,1,2.00
+5,2,2.00
+4,4,3.00
+4,1,3.00
+3,5,5.00
+3,5,4.00
+2,1,4.00
+3,2,3.00
+4,3,2.00
+4,1,4.00
+2,5,2.00
+5,4,5.00
+1,2,1.00
+3,3,2.00
+1,3,1.00
+4,2,3.00
+5,2,3.00
+5,3,3.00
+1,4,3.00
+3,4,5.00
+2,2,1.00
+1,3,2.00
+2,1,5.00
+4,4,3.00
+4,3,1.00
+2,3,5.00
+1,2,1.00
+3,3,3.00
+5,5,5.00
+@SELECT * FROM TBL7;
+a,b,c
+3,4,4.00
+5,3,1.00
+5,4,3.00
+3,5,4.00
+4,2,3.00
+4,5,2.00
+5,5,3.00
+4,2,2.00
+3,5,4.00
+5,4,4.00
+3,4,4.00
+2,3,1.00
+5,1,1.00
+3,2,5.00
+5,4,5.00
+5,3,1.00
+1,2,5.00
+3,2,1.00
+3,5,4.00
+4,4,4.00
+2,5,4.00
+5,3,3.00
+4,1,1.00
+2,3,1.00
+2,3,4.00
+1,2,1.00
+1,5,3.00
+2,4,4.00
+3,5,1.00
+4,3,2.00
+2,5,3.00
+3,3,5.00
+5,5,3.00
+3,3,5.00
+4,5,1.00
+3,1,2.00
+4,1,2.00
+2,2,5.00
+4,3,1.00
+2,4,4.00
+1,5,2.00
+2,3,5.00
+1,4,1.00
+3,3,2.00
+2,5,1.00
+5,5,5.00
+3,5,3.00
+2,4,4.00
+5,1,4.00
+3,1,5.00
+5,1,1.00
+5,2,4.00
+4,3,5.00
+5,1,2.00
+@SELECT * FROM TBL8;
+a,b,c,a,b,c
+1,4,3.00,1,2,5.00
+1,4,3.00,1,2,1.00
+1,4,3.00,1,5,3.00
+1,4,3.00,1,5,2.00
+1,4,3.00,1,4,1.00
+4,5,4.00,4,2,3.00
+4,5,4.00,4,5,2.00
+4,5,4.00,4,2,2.00
+4,5,4.00,4,4,4.00
+4,5,4.00,4,1,1.00
+4,5,4.00,4,3,2.00
+4,5,4.00,4,5,1.00
+4,5,4.00,4,1,2.00
+4,5,4.00,4,3,1.00
+4,5,4.00,4,3,5.00
+1,2,2.00,1,2,5.00
+1,2,2.00,1,2,1.00
+1,2,2.00,1,5,3.00
+1,2,2.00,1,5,2.00
+1,2,2.00,1,4,1.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,4,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,4,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,4,5.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,3,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,5,5.00
+5,1,1.00,5,1,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,2,4.00
+5,1,1.00,5,1,2.00
+3,4,2.00,3,4,4.00
+3,4,2.00,3,5,4.00
+3,4,2.00,3,5,4.00
+3,4,2.00,3,4,4.00
+3,4,2.00,3,2,5.00
+3,4,2.00,3,2,1.00
+3,4,2.00,3,5,4.00
+3,4,2.00,3,5,1.00
+3,4,2.00,3,3,5.00
+3,4,2.00,3,3,5.00
+3,4,2.00,3,1,2.00
+3,4,2.00,3,3,2.00
+3,4,2.00,3,5,3.00
+3,4,2.00,3,1,5.00
+3,1,2.00,3,4,4.00
+3,1,2.00,3,5,4.00
+3,1,2.00,3,5,4.00
+3,1,2.00,3,4,4.00
+3,1,2.00,3,2,5.00
+3,1,2.00,3,2,1.00
+3,1,2.00,3,5,4.00
+3,1,2.00,3,5,1.00
+3,1,2.00,3,3,5.00
+3,1,2.00,3,3,5.00
+3,1,2.00,3,1,2.00
+3,1,2.00,3,3,2.00
+3,1,2.00,3,5,3.00
+3,1,2.00,3,1,5.00
+5,3,2.00,5,3,1.00
+5,3,2.00,5,4,3.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,4,4.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,4,5.00
+5,3,2.00,5,3,1.00
+5,3,2.00,5,3,3.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,5,5.00
+5,3,2.00,5,1,4.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,2,4.00
+5,3,2.00,5,1,2.00
+5,5,3.00,5,3,1.00
+5,5,3.00,5,4,3.00
+5,5,3.00,5,5,3.00
+5,5,3.00,5,4,4.00
+5,5,3.00,5,1,1.00
+5,5,3.00,5,4,5.00
+5,5,3.00,5,3,1.00
+5,5,3.00,5,3,3.00
+5,5,3.00,5,5,3.00
+5,5,3.00,5,5,5.00
+5,5,3.00,5,1,4.00
+5,5,3.00,5,1,1.00
+5,5,3.00,5,2,4.00
+5,5,3.00,5,1,2.00
+3,5,4.00,3,4,4.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,4,4.00
+3,5,4.00,3,2,5.00
+3,5,4.00,3,2,1.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,5,1.00
+3,5,4.00,3,3,5.00
+3,5,4.00,3,3,5.00
+3,5,4.00,3,1,2.00
+3,5,4.00,3,3,2.00
+3,5,4.00,3,5,3.00
+3,5,4.00,3,1,5.00
+1,5,1.00,1,2,5.00
+1,5,1.00,1,2,1.00
+1,5,1.00,1,5,3.00
+1,5,1.00,1,5,2.00
+1,5,1.00,1,4,1.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,4,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,4,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,4,5.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,3,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,5,5.00
+5,1,1.00,5,1,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,2,4.00
+5,1,1.00,5,1,2.00
+2,5,5.00,2,3,1.00
+2,5,5.00,2,5,4.00
+2,5,5.00,2,3,1.00
+2,5,5.00,2,3,4.00
+2,5,5.00,2,4,4.00
+2,5,5.00,2,5,3.00
+2,5,5.00,2,2,5.00
+2,5,5.00,2,4,4.00
+2,5,5.00,2,3,5.00
+2,5,5.00,2,5,1.00
+2,5,5.00,2,4,4.00
+1,2,3.00,1,2,5.00
+1,2,3.00,1,2,1.00
+1,2,3.00,1,5,3.00
+1,2,3.00,1,5,2.00
+1,2,3.00,1,4,1.00
+1,3,1.00,1,2,5.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+1,3,1.00,1,4,1.00
+1,3,2.00,1,2,5.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+1,3,2.00,1,4,1.00
+2,2,2.00,2,3,1.00
+2,2,2.00,2,5,4.00
+2,2,2.00,2,3,1.00
+2,2,2.00,2,3,4.00
+2,2,2.00,2,4,4.00
+2,2,2.00,2,5,3.00
+2,2,2.00,2,2,5.00
+2,2,2.00,2,4,4.00
+2,2,2.00,2,3,5.00
+2,2,2.00,2,5,1.00
+2,2,2.00,2,4,4.00
+3,4,3.00,3,4,4.00
+3,4,3.00,3,5,4.00
+3,4,3.00,3,5,4.00
+3,4,3.00,3,4,4.00
+3,4,3.00,3,2,5.00
+3,4,3.00,3,2,1.00
+3,4,3.00,3,5,4.00
+3,4,3.00,3,5,1.00
+3,4,3.00,3,3,5.00
+3,4,3.00,3,3,5.00
+3,4,3.00,3,1,2.00
+3,4,3.00,3,3,2.00
+3,4,3.00,3,5,3.00
+3,4,3.00,3,1,5.00
+1,1,3.00,1,2,5.00
+1,1,3.00,1,2,1.00
+1,1,3.00,1,5,3.00
+1,1,3.00,1,5,2.00
+1,1,3.00,1,4,1.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,5,4.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,3,4.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,5,3.00
+2,2,1.00,2,2,5.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,3,5.00
+2,2,1.00,2,5,1.00
+2,2,1.00,2,4,4.00
+3,3,5.00,3,4,4.00
+3,3,5.00,3,5,4.00
+3,3,5.00,3,5,4.00
+3,3,5.00,3,4,4.00
+3,3,5.00,3,2,5.00
+3,3,5.00,3,2,1.00
+3,3,5.00,3,5,4.00
+3,3,5.00,3,5,1.00
+3,3,5.00,3,3,5.00
+3,3,5.00,3,3,5.00
+3,3,5.00,3,1,2.00
+3,3,5.00,3,3,2.00
+3,3,5.00,3,5,3.00
+3,3,5.00,3,1,5.00
+3,4,1.00,3,4,4.00
+3,4,1.00,3,5,4.00
+3,4,1.00,3,5,4.00
+3,4,1.00,3,4,4.00
+3,4,1.00,3,2,5.00
+3,4,1.00,3,2,1.00
+3,4,1.00,3,5,4.00
+3,4,1.00,3,5,1.00
+3,4,1.00,3,3,5.00
+3,4,1.00,3,3,5.00
+3,4,1.00,3,1,2.00
+3,4,1.00,3,3,2.00
+3,4,1.00,3,5,3.00
+3,4,1.00,3,1,5.00
+5,4,5.00,5,3,1.00
+5,4,5.00,5,4,3.00
+5,4,5.00,5,5,3.00
+5,4,5.00,5,4,4.00
+5,4,5.00,5,1,1.00
+5,4,5.00,5,4,5.00
+5,4,5.00,5,3,1.00
+5,4,5.00,5,3,3.00
+5,4,5.00,5,5,3.00
+5,4,5.00,5,5,5.00
+5,4,5.00,5,1,4.00
+5,4,5.00,5,1,1.00
+5,4,5.00,5,2,4.00
+5,4,5.00,5,1,2.00
+4,1,2.00,4,2,3.00
+4,1,2.00,4,5,2.00
+4,1,2.00,4,2,2.00
+4,1,2.00,4,4,4.00
+4,1,2.00,4,1,1.00
+4,1,2.00,4,3,2.00
+4,1,2.00,4,5,1.00
+4,1,2.00,4,1,2.00
+4,1,2.00,4,3,1.00
+4,1,2.00,4,3,5.00
+1,1,2.00,1,2,5.00
+1,1,2.00,1,2,1.00
+1,1,2.00,1,5,3.00
+1,1,2.00,1,5,2.00
+1,1,2.00,1,4,1.00
+5,2,2.00,5,3,1.00
+5,2,2.00,5,4,3.00
+5,2,2.00,5,5,3.00
+5,2,2.00,5,4,4.00
+5,2,2.00,5,1,1.00
+5,2,2.00,5,4,5.00
+5,2,2.00,5,3,1.00
+5,2,2.00,5,3,3.00
+5,2,2.00,5,5,3.00
+5,2,2.00,5,5,5.00
+5,2,2.00,5,1,4.00
+5,2,2.00,5,1,1.00
+5,2,2.00,5,2,4.00
+5,2,2.00,5,1,2.00
+4,4,3.00,4,2,3.00
+4,4,3.00,4,5,2.00
+4,4,3.00,4,2,2.00
+4,4,3.00,4,4,4.00
+4,4,3.00,4,1,1.00
+4,4,3.00,4,3,2.00
+4,4,3.00,4,5,1.00
+4,4,3.00,4,1,2.00
+4,4,3.00,4,3,1.00
+4,4,3.00,4,3,5.00
+4,1,3.00,4,2,3.00
+4,1,3.00,4,5,2.00
+4,1,3.00,4,2,2.00
+4,1,3.00,4,4,4.00
+4,1,3.00,4,1,1.00
+4,1,3.00,4,3,2.00
+4,1,3.00,4,5,1.00
+4,1,3.00,4,1,2.00
+4,1,3.00,4,3,1.00
+4,1,3.00,4,3,5.00
+3,5,5.00,3,4,4.00
+3,5,5.00,3,5,4.00
+3,5,5.00,3,5,4.00
+3,5,5.00,3,4,4.00
+3,5,5.00,3,2,5.00
+3,5,5.00,3,2,1.00
+3,5,5.00,3,5,4.00
+3,5,5.00,3,5,1.00
+3,5,5.00,3,3,5.00
+3,5,5.00,3,3,5.00
+3,5,5.00,3,1,2.00
+3,5,5.00,3,3,2.00
+3,5,5.00,3,5,3.00
+3,5,5.00,3,1,5.00
+3,5,4.00,3,4,4.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,4,4.00
+3,5,4.00,3,2,5.00
+3,5,4.00,3,2,1.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,5,1.00
+3,5,4.00,3,3,5.00
+3,5,4.00,3,3,5.00
+3,5,4.00,3,1,2.00
+3,5,4.00,3,3,2.00
+3,5,4.00,3,5,3.00
+3,5,4.00,3,1,5.00
+2,1,4.00,2,3,1.00
+2,1,4.00,2,5,4.00
+2,1,4.00,2,3,1.00
+2,1,4.00,2,3,4.00
+2,1,4.00,2,4,4.00
+2,1,4.00,2,5,3.00
+2,1,4.00,2,2,5.00
+2,1,4.00,2,4,4.00
+2,1,4.00,2,3,5.00
+2,1,4.00,2,5,1.00
+2,1,4.00,2,4,4.00
+3,2,3.00,3,4,4.00
+3,2,3.00,3,5,4.00
+3,2,3.00,3,5,4.00
+3,2,3.00,3,4,4.00
+3,2,3.00,3,2,5.00
+3,2,3.00,3,2,1.00
+3,2,3.00,3,5,4.00
+3,2,3.00,3,5,1.00
+3,2,3.00,3,3,5.00
+3,2,3.00,3,3,5.00
+3,2,3.00,3,1,2.00
+3,2,3.00,3,3,2.00
+3,2,3.00,3,5,3.00
+3,2,3.00,3,1,5.00
+4,3,2.00,4,2,3.00
+4,3,2.00,4,5,2.00
+4,3,2.00,4,2,2.00
+4,3,2.00,4,4,4.00
+4,3,2.00,4,1,1.00
+4,3,2.00,4,3,2.00
+4,3,2.00,4,5,1.00
+4,3,2.00,4,1,2.00
+4,3,2.00,4,3,1.00
+4,3,2.00,4,3,5.00
+4,1,4.00,4,2,3.00
+4,1,4.00,4,5,2.00
+4,1,4.00,4,2,2.00
+4,1,4.00,4,4,4.00
+4,1,4.00,4,1,1.00
+4,1,4.00,4,3,2.00
+4,1,4.00,4,5,1.00
+4,1,4.00,4,1,2.00
+4,1,4.00,4,3,1.00
+4,1,4.00,4,3,5.00
+2,5,2.00,2,3,1.00
+2,5,2.00,2,5,4.00
+2,5,2.00,2,3,1.00
+2,5,2.00,2,3,4.00
+2,5,2.00,2,4,4.00
+2,5,2.00,2,5,3.00
+2,5,2.00,2,2,5.00
+2,5,2.00,2,4,4.00
+2,5,2.00,2,3,5.00
+2,5,2.00,2,5,1.00
+2,5,2.00,2,4,4.00
+5,4,5.00,5,3,1.00
+5,4,5.00,5,4,3.00
+5,4,5.00,5,5,3.00
+5,4,5.00,5,4,4.00
+5,4,5.00,5,1,1.00
+5,4,5.00,5,4,5.00
+5,4,5.00,5,3,1.00
+5,4,5.00,5,3,3.00
+5,4,5.00,5,5,3.00
+5,4,5.00,5,5,5.00
+5,4,5.00,5,1,4.00
+5,4,5.00,5,1,1.00
+5,4,5.00,5,2,4.00
+5,4,5.00,5,1,2.00
+1,2,1.00,1,2,5.00
+1,2,1.00,1,2,1.00
+1,2,1.00,1,5,3.00
+1,2,1.00,1,5,2.00
+1,2,1.00,1,4,1.00
+3,3,2.00,3,4,4.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,4,4.00
+3,3,2.00,3,2,5.00
+3,3,2.00,3,2,1.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,5,1.00
+3,3,2.00,3,3,5.00
+3,3,2.00,3,3,5.00
+3,3,2.00,3,1,2.00
+3,3,2.00,3,3,2.00
+3,3,2.00,3,5,3.00
+3,3,2.00,3,1,5.00
+1,3,1.00,1,2,5.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+1,3,1.00,1,4,1.00
+4,2,3.00,4,2,3.00
+4,2,3.00,4,5,2.00
+4,2,3.00,4,2,2.00
+4,2,3.00,4,4,4.00
+4,2,3.00,4,1,1.00
+4,2,3.00,4,3,2.00
+4,2,3.00,4,5,1.00
+4,2,3.00,4,1,2.00
+4,2,3.00,4,3,1.00
+4,2,3.00,4,3,5.00
+5,2,3.00,5,3,1.00
+5,2,3.00,5,4,3.00
+5,2,3.00,5,5,3.00
+5,2,3.00,5,4,4.00
+5,2,3.00,5,1,1.00
+5,2,3.00,5,4,5.00
+5,2,3.00,5,3,1.00
+5,2,3.00,5,3,3.00
+5,2,3.00,5,5,3.00
+5,2,3.00,5,5,5.00
+5,2,3.00,5,1,4.00
+5,2,3.00,5,1,1.00
+5,2,3.00,5,2,4.00
+5,2,3.00,5,1,2.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,4,3.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,4,4.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,4,5.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,3,3.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,5,5.00
+5,3,3.00,5,1,4.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,2,4.00
+5,3,3.00,5,1,2.00
+1,4,3.00,1,2,5.00
+1,4,3.00,1,2,1.00
+1,4,3.00,1,5,3.00
+1,4,3.00,1,5,2.00
+1,4,3.00,1,4,1.00
+3,4,5.00,3,4,4.00
+3,4,5.00,3,5,4.00
+3,4,5.00,3,5,4.00
+3,4,5.00,3,4,4.00
+3,4,5.00,3,2,5.00
+3,4,5.00,3,2,1.00
+3,4,5.00,3,5,4.00
+3,4,5.00,3,5,1.00
+3,4,5.00,3,3,5.00
+3,4,5.00,3,3,5.00
+3,4,5.00,3,1,2.00
+3,4,5.00,3,3,2.00
+3,4,5.00,3,5,3.00
+3,4,5.00,3,1,5.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,5,4.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,3,4.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,5,3.00
+2,2,1.00,2,2,5.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,3,5.00
+2,2,1.00,2,5,1.00
+2,2,1.00,2,4,4.00
+1,3,2.00,1,2,5.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+1,3,2.00,1,4,1.00
+2,1,5.00,2,3,1.00
+2,1,5.00,2,5,4.00
+2,1,5.00,2,3,1.00
+2,1,5.00,2,3,4.00
+2,1,5.00,2,4,4.00
+2,1,5.00,2,5,3.00
+2,1,5.00,2,2,5.00
+2,1,5.00,2,4,4.00
+2,1,5.00,2,3,5.00
+2,1,5.00,2,5,1.00
+2,1,5.00,2,4,4.00
+4,4,3.00,4,2,3.00
+4,4,3.00,4,5,2.00
+4,4,3.00,4,2,2.00
+4,4,3.00,4,4,4.00
+4,4,3.00,4,1,1.00
+4,4,3.00,4,3,2.00
+4,4,3.00,4,5,1.00
+4,4,3.00,4,1,2.00
+4,4,3.00,4,3,1.00
+4,4,3.00,4,3,5.00
+4,3,1.00,4,2,3.00
+4,3,1.00,4,5,2.00
+4,3,1.00,4,2,2.00
+4,3,1.00,4,4,4.00
+4,3,1.00,4,1,1.00
+4,3,1.00,4,3,2.00
+4,3,1.00,4,5,1.00
+4,3,1.00,4,1,2.00
+4,3,1.00,4,3,1.00
+4,3,1.00,4,3,5.00
+2,3,5.00,2,3,1.00
+2,3,5.00,2,5,4.00
+2,3,5.00,2,3,1.00
+2,3,5.00,2,3,4.00
+2,3,5.00,2,4,4.00
+2,3,5.00,2,5,3.00
+2,3,5.00,2,2,5.00
+2,3,5.00,2,4,4.00
+2,3,5.00,2,3,5.00
+2,3,5.00,2,5,1.00
+2,3,5.00,2,4,4.00
+1,2,1.00,1,2,5.00
+1,2,1.00,1,2,1.00
+1,2,1.00,1,5,3.00
+1,2,1.00,1,5,2.00
+1,2,1.00,1,4,1.00
+3,3,3.00,3,4,4.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,4,4.00
+3,3,3.00,3,2,5.00
+3,3,3.00,3,2,1.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,5,1.00
+3,3,3.00,3,3,5.00
+3,3,3.00,3,3,5.00
+3,3,3.00,3,1,2.00
+3,3,3.00,3,3,2.00
+3,3,3.00,3,5,3.00
+3,3,3.00,3,1,5.00
+5,5,5.00,5,3,1.00
+5,5,5.00,5,4,3.00
+5,5,5.00,5,5,3.00
+5,5,5.00,5,4,4.00
+5,5,5.00,5,1,1.00
+5,5,5.00,5,4,5.00
+5,5,5.00,5,3,1.00
+5,5,5.00,5,3,3.00
+5,5,5.00,5,5,3.00
+5,5,5.00,5,5,5.00
+5,5,5.00,5,1,4.00
+5,5,5.00,5,1,1.00
+5,5,5.00,5,2,4.00
+5,5,5.00,5,1,2.00
+@SELECT TBL7.a, TBL7.b, TBL7.c, TBL8.a, TBL8.b, TBL8.c FROM TBL7, TBL8 WHERE TBL7.a = TBL8.a;
+a,b,c,a,b,c
+1,4,3.00,3,4,4.00
+1,4,3.00,5,4,3.00
+1,4,3.00,5,4,4.00
+1,4,3.00,3,4,4.00
+1,4,3.00,5,4,5.00
+1,4,3.00,4,4,4.00
+1,4,3.00,2,4,4.00
+1,4,3.00,2,4,4.00
+1,4,3.00,1,4,1.00
+1,4,3.00,2,4,4.00
+4,5,4.00,3,5,4.00
+4,5,4.00,4,5,2.00
+4,5,4.00,5,5,3.00
+4,5,4.00,3,5,4.00
+4,5,4.00,3,5,4.00
+4,5,4.00,2,5,4.00
+4,5,4.00,1,5,3.00
+4,5,4.00,3,5,1.00
+4,5,4.00,2,5,3.00
+4,5,4.00,5,5,3.00
+4,5,4.00,4,5,1.00
+4,5,4.00,1,5,2.00
+4,5,4.00,2,5,1.00
+4,5,4.00,5,5,5.00
+4,5,4.00,3,5,3.00
+1,2,2.00,4,2,3.00
+1,2,2.00,4,2,2.00
+1,2,2.00,3,2,5.00
+1,2,2.00,1,2,5.00
+1,2,2.00,3,2,1.00
+1,2,2.00,1,2,1.00
+1,2,2.00,2,2,5.00
+1,2,2.00,5,2,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,4,1,1.00
+5,1,1.00,3,1,2.00
+5,1,1.00,4,1,2.00
+5,1,1.00,5,1,4.00
+5,1,1.00,3,1,5.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,1,2.00
+3,4,2.00,3,4,4.00
+3,4,2.00,5,4,3.00
+3,4,2.00,5,4,4.00
+3,4,2.00,3,4,4.00
+3,4,2.00,5,4,5.00
+3,4,2.00,4,4,4.00
+3,4,2.00,2,4,4.00
+3,4,2.00,2,4,4.00
+3,4,2.00,1,4,1.00
+3,4,2.00,2,4,4.00
+3,1,2.00,5,1,1.00
+3,1,2.00,4,1,1.00
+3,1,2.00,3,1,2.00
+3,1,2.00,4,1,2.00
+3,1,2.00,5,1,4.00
+3,1,2.00,3,1,5.00
+3,1,2.00,5,1,1.00
+3,1,2.00,5,1,2.00
+5,3,2.00,5,3,1.00
+5,3,2.00,2,3,1.00
+5,3,2.00,5,3,1.00
+5,3,2.00,5,3,3.00
+5,3,2.00,2,3,1.00
+5,3,2.00,2,3,4.00
+5,3,2.00,4,3,2.00
+5,3,2.00,3,3,5.00
+5,3,2.00,3,3,5.00
+5,3,2.00,4,3,1.00
+5,3,2.00,2,3,5.00
+5,3,2.00,3,3,2.00
+5,3,2.00,4,3,5.00
+5,5,3.00,3,5,4.00
+5,5,3.00,4,5,2.00
+5,5,3.00,5,5,3.00
+5,5,3.00,3,5,4.00
+5,5,3.00,3,5,4.00
+5,5,3.00,2,5,4.00
+5,5,3.00,1,5,3.00
+5,5,3.00,3,5,1.00
+5,5,3.00,2,5,3.00
+5,5,3.00,5,5,3.00
+5,5,3.00,4,5,1.00
+5,5,3.00,1,5,2.00
+5,5,3.00,2,5,1.00
+5,5,3.00,5,5,5.00
+5,5,3.00,3,5,3.00
+3,5,4.00,3,5,4.00
+3,5,4.00,4,5,2.00
+3,5,4.00,5,5,3.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,5,4.00
+3,5,4.00,2,5,4.00
+3,5,4.00,1,5,3.00
+3,5,4.00,3,5,1.00
+3,5,4.00,2,5,3.00
+3,5,4.00,5,5,3.00
+3,5,4.00,4,5,1.00
+3,5,4.00,1,5,2.00
+3,5,4.00,2,5,1.00
+3,5,4.00,5,5,5.00
+3,5,4.00,3,5,3.00
+1,5,1.00,3,5,4.00
+1,5,1.00,4,5,2.00
+1,5,1.00,5,5,3.00
+1,5,1.00,3,5,4.00
+1,5,1.00,3,5,4.00
+1,5,1.00,2,5,4.00
+1,5,1.00,1,5,3.00
+1,5,1.00,3,5,1.00
+1,5,1.00,2,5,3.00
+1,5,1.00,5,5,3.00
+1,5,1.00,4,5,1.00
+1,5,1.00,1,5,2.00
+1,5,1.00,2,5,1.00
+1,5,1.00,5,5,5.00
+1,5,1.00,3,5,3.00
+5,1,1.00,5,1,1.00
+5,1,1.00,4,1,1.00
+5,1,1.00,3,1,2.00
+5,1,1.00,4,1,2.00
+5,1,1.00,5,1,4.00
+5,1,1.00,3,1,5.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,1,2.00
+2,5,5.00,3,5,4.00
+2,5,5.00,4,5,2.00
+2,5,5.00,5,5,3.00
+2,5,5.00,3,5,4.00
+2,5,5.00,3,5,4.00
+2,5,5.00,2,5,4.00
+2,5,5.00,1,5,3.00
+2,5,5.00,3,5,1.00
+2,5,5.00,2,5,3.00
+2,5,5.00,5,5,3.00
+2,5,5.00,4,5,1.00
+2,5,5.00,1,5,2.00
+2,5,5.00,2,5,1.00
+2,5,5.00,5,5,5.00
+2,5,5.00,3,5,3.00
+1,2,3.00,4,2,3.00
+1,2,3.00,4,2,2.00
+1,2,3.00,3,2,5.00
+1,2,3.00,1,2,5.00
+1,2,3.00,3,2,1.00
+1,2,3.00,1,2,1.00
+1,2,3.00,2,2,5.00
+1,2,3.00,5,2,4.00
+1,3,1.00,5,3,1.00
+1,3,1.00,2,3,1.00
+1,3,1.00,5,3,1.00
+1,3,1.00,5,3,3.00
+1,3,1.00,2,3,1.00
+1,3,1.00,2,3,4.00
+1,3,1.00,4,3,2.00
+1,3,1.00,3,3,5.00
+1,3,1.00,3,3,5.00
+1,3,1.00,4,3,1.00
+1,3,1.00,2,3,5.00
+1,3,1.00,3,3,2.00
+1,3,1.00,4,3,5.00
+1,3,2.00,5,3,1.00
+1,3,2.00,2,3,1.00
+1,3,2.00,5,3,1.00
+1,3,2.00,5,3,3.00
+1,3,2.00,2,3,1.00
+1,3,2.00,2,3,4.00
+1,3,2.00,4,3,2.00
+1,3,2.00,3,3,5.00
+1,3,2.00,3,3,5.00
+1,3,2.00,4,3,1.00
+1,3,2.00,2,3,5.00
+1,3,2.00,3,3,2.00
+1,3,2.00,4,3,5.00
+2,2,2.00,4,2,3.00
+2,2,2.00,4,2,2.00
+2,2,2.00,3,2,5.00
+2,2,2.00,1,2,5.00
+2,2,2.00,3,2,1.00
+2,2,2.00,1,2,1.00
+2,2,2.00,2,2,5.00
+2,2,2.00,5,2,4.00
+3,4,3.00,3,4,4.00
+3,4,3.00,5,4,3.00
+3,4,3.00,5,4,4.00
+3,4,3.00,3,4,4.00
+3,4,3.00,5,4,5.00
+3,4,3.00,4,4,4.00
+3,4,3.00,2,4,4.00
+3,4,3.00,2,4,4.00
+3,4,3.00,1,4,1.00
+3,4,3.00,2,4,4.00
+1,1,3.00,5,1,1.00
+1,1,3.00,4,1,1.00
+1,1,3.00,3,1,2.00
+1,1,3.00,4,1,2.00
+1,1,3.00,5,1,4.00
+1,1,3.00,3,1,5.00
+1,1,3.00,5,1,1.00
+1,1,3.00,5,1,2.00
+2,2,1.00,4,2,3.00
+2,2,1.00,4,2,2.00
+2,2,1.00,3,2,5.00
+2,2,1.00,1,2,5.00
+2,2,1.00,3,2,1.00
+2,2,1.00,1,2,1.00
+2,2,1.00,2,2,5.00
+2,2,1.00,5,2,4.00
+3,3,5.00,5,3,1.00
+3,3,5.00,2,3,1.00
+3,3,5.00,5,3,1.00
+3,3,5.00,5,3,3.00
+3,3,5.00,2,3,1.00
+3,3,5.00,2,3,4.00
+3,3,5.00,4,3,2.00
+3,3,5.00,3,3,5.00
+3,3,5.00,3,3,5.00
+3,3,5.00,4,3,1.00
+3,3,5.00,2,3,5.00
+3,3,5.00,3,3,2.00
+3,3,5.00,4,3,5.00
+3,4,1.00,3,4,4.00
+3,4,1.00,5,4,3.00
+3,4,1.00,5,4,4.00
+3,4,1.00,3,4,4.00
+3,4,1.00,5,4,5.00
+3,4,1.00,4,4,4.00
+3,4,1.00,2,4,4.00
+3,4,1.00,2,4,4.00
+3,4,1.00,1,4,1.00
+3,4,1.00,2,4,4.00
+5,4,5.00,3,4,4.00
+5,4,5.00,5,4,3.00
+5,4,5.00,5,4,4.00
+5,4,5.00,3,4,4.00
+5,4,5.00,5,4,5.00
+5,4,5.00,4,4,4.00
+5,4,5.00,2,4,4.00
+5,4,5.00,2,4,4.00
+5,4,5.00,1,4,1.00
+5,4,5.00,2,4,4.00
+4,1,2.00,5,1,1.00
+4,1,2.00,4,1,1.00
+4,1,2.00,3,1,2.00
+4,1,2.00,4,1,2.00
+4,1,2.00,5,1,4.00
+4,1,2.00,3,1,5.00
+4,1,2.00,5,1,1.00
+4,1,2.00,5,1,2.00
+1,1,2.00,5,1,1.00
+1,1,2.00,4,1,1.00
+1,1,2.00,3,1,2.00
+1,1,2.00,4,1,2.00
+1,1,2.00,5,1,4.00
+1,1,2.00,3,1,5.00
+1,1,2.00,5,1,1.00
+1,1,2.00,5,1,2.00
+5,2,2.00,4,2,3.00
+5,2,2.00,4,2,2.00
+5,2,2.00,3,2,5.00
+5,2,2.00,1,2,5.00
+5,2,2.00,3,2,1.00
+5,2,2.00,1,2,1.00
+5,2,2.00,2,2,5.00
+5,2,2.00,5,2,4.00
+4,4,3.00,3,4,4.00
+4,4,3.00,5,4,3.00
+4,4,3.00,5,4,4.00
+4,4,3.00,3,4,4.00
+4,4,3.00,5,4,5.00
+4,4,3.00,4,4,4.00
+4,4,3.00,2,4,4.00
+4,4,3.00,2,4,4.00
+4,4,3.00,1,4,1.00
+4,4,3.00,2,4,4.00
+4,1,3.00,5,1,1.00
+4,1,3.00,4,1,1.00
+4,1,3.00,3,1,2.00
+4,1,3.00,4,1,2.00
+4,1,3.00,5,1,4.00
+4,1,3.00,3,1,5.00
+4,1,3.00,5,1,1.00
+4,1,3.00,5,1,2.00
+3,5,5.00,3,5,4.00
+3,5,5.00,4,5,2.00
+3,5,5.00,5,5,3.00
+3,5,5.00,3,5,4.00
+3,5,5.00,3,5,4.00
+3,5,5.00,2,5,4.00
+3,5,5.00,1,5,3.00
+3,5,5.00,3,5,1.00
+3,5,5.00,2,5,3.00
+3,5,5.00,5,5,3.00
+3,5,5.00,4,5,1.00
+3,5,5.00,1,5,2.00
+3,5,5.00,2,5,1.00
+3,5,5.00,5,5,5.00
+3,5,5.00,3,5,3.00
+3,5,4.00,3,5,4.00
+3,5,4.00,4,5,2.00
+3,5,4.00,5,5,3.00
+3,5,4.00,3,5,4.00
+3,5,4.00,3,5,4.00
+3,5,4.00,2,5,4.00
+3,5,4.00,1,5,3.00
+3,5,4.00,3,5,1.00
+3,5,4.00,2,5,3.00
+3,5,4.00,5,5,3.00
+3,5,4.00,4,5,1.00
+3,5,4.00,1,5,2.00
+3,5,4.00,2,5,1.00
+3,5,4.00,5,5,5.00
+3,5,4.00,3,5,3.00
+2,1,4.00,5,1,1.00
+2,1,4.00,4,1,1.00
+2,1,4.00,3,1,2.00
+2,1,4.00,4,1,2.00
+2,1,4.00,5,1,4.00
+2,1,4.00,3,1,5.00
+2,1,4.00,5,1,1.00
+2,1,4.00,5,1,2.00
+3,2,3.00,4,2,3.00
+3,2,3.00,4,2,2.00
+3,2,3.00,3,2,5.00
+3,2,3.00,1,2,5.00
+3,2,3.00,3,2,1.00
+3,2,3.00,1,2,1.00
+3,2,3.00,2,2,5.00
+3,2,3.00,5,2,4.00
+4,3,2.00,5,3,1.00
+4,3,2.00,2,3,1.00
+4,3,2.00,5,3,1.00
+4,3,2.00,5,3,3.00
+4,3,2.00,2,3,1.00
+4,3,2.00,2,3,4.00
+4,3,2.00,4,3,2.00
+4,3,2.00,3,3,5.00
+4,3,2.00,3,3,5.00
+4,3,2.00,4,3,1.00
+4,3,2.00,2,3,5.00
+4,3,2.00,3,3,2.00
+4,3,2.00,4,3,5.00
+4,1,4.00,5,1,1.00
+4,1,4.00,4,1,1.00
+4,1,4.00,3,1,2.00
+4,1,4.00,4,1,2.00
+4,1,4.00,5,1,4.00
+4,1,4.00,3,1,5.00
+4,1,4.00,5,1,1.00
+4,1,4.00,5,1,2.00
+2,5,2.00,3,5,4.00
+2,5,2.00,4,5,2.00
+2,5,2.00,5,5,3.00
+2,5,2.00,3,5,4.00
+2,5,2.00,3,5,4.00
+2,5,2.00,2,5,4.00
+2,5,2.00,1,5,3.00
+2,5,2.00,3,5,1.00
+2,5,2.00,2,5,3.00
+2,5,2.00,5,5,3.00
+2,5,2.00,4,5,1.00
+2,5,2.00,1,5,2.00
+2,5,2.00,2,5,1.00
+2,5,2.00,5,5,5.00
+2,5,2.00,3,5,3.00
+5,4,5.00,3,4,4.00
+5,4,5.00,5,4,3.00
+5,4,5.00,5,4,4.00
+5,4,5.00,3,4,4.00
+5,4,5.00,5,4,5.00
+5,4,5.00,4,4,4.00
+5,4,5.00,2,4,4.00
+5,4,5.00,2,4,4.00
+5,4,5.00,1,4,1.00
+5,4,5.00,2,4,4.00
+1,2,1.00,4,2,3.00
+1,2,1.00,4,2,2.00
+1,2,1.00,3,2,5.00
+1,2,1.00,1,2,5.00
+1,2,1.00,3,2,1.00
+1,2,1.00,1,2,1.00
+1,2,1.00,2,2,5.00
+1,2,1.00,5,2,4.00
+3,3,2.00,5,3,1.00
+3,3,2.00,2,3,1.00
+3,3,2.00,5,3,1.00
+3,3,2.00,5,3,3.00
+3,3,2.00,2,3,1.00
+3,3,2.00,2,3,4.00
+3,3,2.00,4,3,2.00
+3,3,2.00,3,3,5.00
+3,3,2.00,3,3,5.00
+3,3,2.00,4,3,1.00
+3,3,2.00,2,3,5.00
+3,3,2.00,3,3,2.00
+3,3,2.00,4,3,5.00
+1,3,1.00,5,3,1.00
+1,3,1.00,2,3,1.00
+1,3,1.00,5,3,1.00
+1,3,1.00,5,3,3.00
+1,3,1.00,2,3,1.00
+1,3,1.00,2,3,4.00
+1,3,1.00,4,3,2.00
+1,3,1.00,3,3,5.00
+1,3,1.00,3,3,5.00
+1,3,1.00,4,3,1.00
+1,3,1.00,2,3,5.00
+1,3,1.00,3,3,2.00
+1,3,1.00,4,3,5.00
+4,2,3.00,4,2,3.00
+4,2,3.00,4,2,2.00
+4,2,3.00,3,2,5.00
+4,2,3.00,1,2,5.00
+4,2,3.00,3,2,1.00
+4,2,3.00,1,2,1.00
+4,2,3.00,2,2,5.00
+4,2,3.00,5,2,4.00
+5,2,3.00,4,2,3.00
+5,2,3.00,4,2,2.00
+5,2,3.00,3,2,5.00
+5,2,3.00,1,2,5.00
+5,2,3.00,3,2,1.00
+5,2,3.00,1,2,1.00
+5,2,3.00,2,2,5.00
+5,2,3.00,5,2,4.00
+5,3,3.00,5,3,1.00
+5,3,3.00,2,3,1.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,3,3.00
+5,3,3.00,2,3,1.00
+5,3,3.00,2,3,4.00
+5,3,3.00,4,3,2.00
+5,3,3.00,3,3,5.00
+5,3,3.00,3,3,5.00
+5,3,3.00,4,3,1.00
+5,3,3.00,2,3,5.00
+5,3,3.00,3,3,2.00
+5,3,3.00,4,3,5.00
+1,4,3.00,3,4,4.00
+1,4,3.00,5,4,3.00
+1,4,3.00,5,4,4.00
+1,4,3.00,3,4,4.00
+1,4,3.00,5,4,5.00
+1,4,3.00,4,4,4.00
+1,4,3.00,2,4,4.00
+1,4,3.00,2,4,4.00
+1,4,3.00,1,4,1.00
+1,4,3.00,2,4,4.00
+3,4,5.00,3,4,4.00
+3,4,5.00,5,4,3.00
+3,4,5.00,5,4,4.00
+3,4,5.00,3,4,4.00
+3,4,5.00,5,4,5.00
+3,4,5.00,4,4,4.00
+3,4,5.00,2,4,4.00
+3,4,5.00,2,4,4.00
+3,4,5.00,1,4,1.00
+3,4,5.00,2,4,4.00
+2,2,1.00,4,2,3.00
+2,2,1.00,4,2,2.00
+2,2,1.00,3,2,5.00
+2,2,1.00,1,2,5.00
+2,2,1.00,3,2,1.00
+2,2,1.00,1,2,1.00
+2,2,1.00,2,2,5.00
+2,2,1.00,5,2,4.00
+1,3,2.00,5,3,1.00
+1,3,2.00,2,3,1.00
+1,3,2.00,5,3,1.00
+1,3,2.00,5,3,3.00
+1,3,2.00,2,3,1.00
+1,3,2.00,2,3,4.00
+1,3,2.00,4,3,2.00
+1,3,2.00,3,3,5.00
+1,3,2.00,3,3,5.00
+1,3,2.00,4,3,1.00
+1,3,2.00,2,3,5.00
+1,3,2.00,3,3,2.00
+1,3,2.00,4,3,5.00
+2,1,5.00,5,1,1.00
+2,1,5.00,4,1,1.00
+2,1,5.00,3,1,2.00
+2,1,5.00,4,1,2.00
+2,1,5.00,5,1,4.00
+2,1,5.00,3,1,5.00
+2,1,5.00,5,1,1.00
+2,1,5.00,5,1,2.00
+4,4,3.00,3,4,4.00
+4,4,3.00,5,4,3.00
+4,4,3.00,5,4,4.00
+4,4,3.00,3,4,4.00
+4,4,3.00,5,4,5.00
+4,4,3.00,4,4,4.00
+4,4,3.00,2,4,4.00
+4,4,3.00,2,4,4.00
+4,4,3.00,1,4,1.00
+4,4,3.00,2,4,4.00
+4,3,1.00,5,3,1.00
+4,3,1.00,2,3,1.00
+4,3,1.00,5,3,1.00
+4,3,1.00,5,3,3.00
+4,3,1.00,2,3,1.00
+4,3,1.00,2,3,4.00
+4,3,1.00,4,3,2.00
+4,3,1.00,3,3,5.00
+4,3,1.00,3,3,5.00
+4,3,1.00,4,3,1.00
+4,3,1.00,2,3,5.00
+4,3,1.00,3,3,2.00
+4,3,1.00,4,3,5.00
+2,3,5.00,5,3,1.00
+2,3,5.00,2,3,1.00
+2,3,5.00,5,3,1.00
+2,3,5.00,5,3,3.00
+2,3,5.00,2,3,1.00
+2,3,5.00,2,3,4.00
+2,3,5.00,4,3,2.00
+2,3,5.00,3,3,5.00
+2,3,5.00,3,3,5.00
+2,3,5.00,4,3,1.00
+2,3,5.00,2,3,5.00
+2,3,5.00,3,3,2.00
+2,3,5.00,4,3,5.00
+1,2,1.00,4,2,3.00
+1,2,1.00,4,2,2.00
+1,2,1.00,3,2,5.00
+1,2,1.00,1,2,5.00
+1,2,1.00,3,2,1.00
+1,2,1.00,1,2,1.00
+1,2,1.00,2,2,5.00
+1,2,1.00,5,2,4.00
+3,3,3.00,5,3,1.00
+3,3,3.00,2,3,1.00
+3,3,3.00,5,3,1.00
+3,3,3.00,5,3,3.00
+3,3,3.00,2,3,1.00
+3,3,3.00,2,3,4.00
+3,3,3.00,4,3,2.00
+3,3,3.00,3,3,5.00
+3,3,3.00,3,3,5.00
+3,3,3.00,4,3,1.00
+3,3,3.00,2,3,5.00
+3,3,3.00,3,3,2.00
+3,3,3.00,4,3,5.00
+5,5,5.00,3,5,4.00
+5,5,5.00,4,5,2.00
+5,5,5.00,5,5,3.00
+5,5,5.00,3,5,4.00
+5,5,5.00,3,5,4.00
+5,5,5.00,2,5,4.00
+5,5,5.00,1,5,3.00
+5,5,5.00,3,5,1.00
+5,5,5.00,2,5,3.00
+5,5,5.00,5,5,3.00
+5,5,5.00,4,5,1.00
+5,5,5.00,1,5,2.00
+5,5,5.00,2,5,1.00
+5,5,5.00,5,5,5.00
+5,5,5.00,3,5,3.00
+@SELECT TBL7.a, TBL7.b, TBL7.c, TBL8.a, TBL8.b, TBL8.c FROM TBL7, TBL8 WHERE TBL7.b = TBL8.b;
+a,b,c,a,b,c
+1,4,3.00,1,2,5.00
+1,4,3.00,1,2,1.00
+1,4,3.00,1,5,3.00
+1,4,3.00,1,5,2.00
+1,4,3.00,1,4,1.00
+1,2,2.00,1,2,5.00
+1,2,2.00,1,2,1.00
+1,2,2.00,1,5,3.00
+1,2,2.00,1,5,2.00
+1,2,2.00,1,4,1.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,4,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,4,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,4,5.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,3,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,5,5.00
+5,1,1.00,5,1,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,2,4.00
+5,1,1.00,5,1,2.00
+3,4,2.00,3,4,4.00
+3,4,2.00,3,5,4.00
+3,4,2.00,3,5,4.00
+3,4,2.00,3,4,4.00
+3,4,2.00,3,2,5.00
+3,4,2.00,3,2,1.00
+3,4,2.00,3,5,4.00
+3,4,2.00,3,5,1.00
+3,4,2.00,3,3,5.00
+3,4,2.00,3,3,5.00
+3,4,2.00,3,1,2.00
+3,4,2.00,3,3,2.00
+3,4,2.00,3,5,3.00
+3,4,2.00,3,1,5.00
+3,1,2.00,3,4,4.00
+3,1,2.00,3,5,4.00
+3,1,2.00,3,5,4.00
+3,1,2.00,3,4,4.00
+3,1,2.00,3,2,5.00
+3,1,2.00,3,2,1.00
+3,1,2.00,3,5,4.00
+3,1,2.00,3,5,1.00
+3,1,2.00,3,3,5.00
+3,1,2.00,3,3,5.00
+3,1,2.00,3,1,2.00
+3,1,2.00,3,3,2.00
+3,1,2.00,3,5,3.00
+3,1,2.00,3,1,5.00
+5,3,2.00,5,3,1.00
+5,3,2.00,5,4,3.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,4,4.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,4,5.00
+5,3,2.00,5,3,1.00
+5,3,2.00,5,3,3.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,5,5.00
+5,3,2.00,5,1,4.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,2,4.00
+5,3,2.00,5,1,2.00
+5,5,3.00,5,3,1.00
+5,5,3.00,5,4,3.00
+5,5,3.00,5,5,3.00
+5,5,3.00,5,4,4.00
+5,5,3.00,5,1,1.00
+5,5,3.00,5,4,5.00
+5,5,3.00,5,3,1.00
+5,5,3.00,5,3,3.00
+5,5,3.00,5,5,3.00
+5,5,3.00,5,5,5.00
+5,5,3.00,5,1,4.00
+5,5,3.00,5,1,1.00
+5,5,3.00,5,2,4.00
+5,5,3.00,5,1,2.00
+1,5,1.00,1,2,5.00
+1,5,1.00,1,2,1.00
+1,5,1.00,1,5,3.00
+1,5,1.00,1,5,2.00
+1,5,1.00,1,4,1.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,4,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,4,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,4,5.00
+5,1,1.00,5,3,1.00
+5,1,1.00,5,3,3.00
+5,1,1.00,5,5,3.00
+5,1,1.00,5,5,5.00
+5,1,1.00,5,1,4.00
+5,1,1.00,5,1,1.00
+5,1,1.00,5,2,4.00
+5,1,1.00,5,1,2.00
+1,2,3.00,1,2,5.00
+1,2,3.00,1,2,1.00
+1,2,3.00,1,5,3.00
+1,2,3.00,1,5,2.00
+1,2,3.00,1,4,1.00
+1,3,1.00,1,2,5.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+1,3,1.00,1,4,1.00
+1,3,2.00,1,2,5.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+1,3,2.00,1,4,1.00
+2,2,2.00,2,3,1.00
+2,2,2.00,2,5,4.00
+2,2,2.00,2,3,1.00
+2,2,2.00,2,3,4.00
+2,2,2.00,2,4,4.00
+2,2,2.00,2,5,3.00
+2,2,2.00,2,2,5.00
+2,2,2.00,2,4,4.00
+2,2,2.00,2,3,5.00
+2,2,2.00,2,5,1.00
+2,2,2.00,2,4,4.00
+3,4,3.00,3,4,4.00
+3,4,3.00,3,5,4.00
+3,4,3.00,3,5,4.00
+3,4,3.00,3,4,4.00
+3,4,3.00,3,2,5.00
+3,4,3.00,3,2,1.00
+3,4,3.00,3,5,4.00
+3,4,3.00,3,5,1.00
+3,4,3.00,3,3,5.00
+3,4,3.00,3,3,5.00
+3,4,3.00,3,1,2.00
+3,4,3.00,3,3,2.00
+3,4,3.00,3,5,3.00
+3,4,3.00,3,1,5.00
+1,1,3.00,1,2,5.00
+1,1,3.00,1,2,1.00
+1,1,3.00,1,5,3.00
+1,1,3.00,1,5,2.00
+1,1,3.00,1,4,1.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,5,4.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,3,4.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,5,3.00
+2,2,1.00,2,2,5.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,3,5.00
+2,2,1.00,2,5,1.00
+2,2,1.00,2,4,4.00
+3,4,1.00,3,4,4.00
+3,4,1.00,3,5,4.00
+3,4,1.00,3,5,4.00
+3,4,1.00,3,4,4.00
+3,4,1.00,3,2,5.00
+3,4,1.00,3,2,1.00
+3,4,1.00,3,5,4.00
+3,4,1.00,3,5,1.00
+3,4,1.00,3,3,5.00
+3,4,1.00,3,3,5.00
+3,4,1.00,3,1,2.00
+3,4,1.00,3,3,2.00
+3,4,1.00,3,5,3.00
+3,4,1.00,3,1,5.00
+4,1,2.00,4,2,3.00
+4,1,2.00,4,5,2.00
+4,1,2.00,4,2,2.00
+4,1,2.00,4,4,4.00
+4,1,2.00,4,1,1.00
+4,1,2.00,4,3,2.00
+4,1,2.00,4,5,1.00
+4,1,2.00,4,1,2.00
+4,1,2.00,4,3,1.00
+4,1,2.00,4,3,5.00
+1,1,2.00,1,2,5.00
+1,1,2.00,1,2,1.00
+1,1,2.00,1,5,3.00
+1,1,2.00,1,5,2.00
+1,1,2.00,1,4,1.00
+5,2,2.00,5,3,1.00
+5,2,2.00,5,4,3.00
+5,2,2.00,5,5,3.00
+5,2,2.00,5,4,4.00
+5,2,2.00,5,1,1.00
+5,2,2.00,5,4,5.00
+5,2,2.00,5,3,1.00
+5,2,2.00,5,3,3.00
+5,2,2.00,5,5,3.00
+5,2,2.00,5,5,5.00
+5,2,2.00,5,1,4.00
+5,2,2.00,5,1,1.00
+5,2,2.00,5,2,4.00
+5,2,2.00,5,1,2.00
+4,4,3.00,4,2,3.00
+4,4,3.00,4,5,2.00
+4,4,3.00,4,2,2.00
+4,4,3.00,4,4,4.00
+4,4,3.00,4,1,1.00
+4,4,3.00,4,3,2.00
+4,4,3.00,4,5,1.00
+4,4,3.00,4,1,2.00
+4,4,3.00,4,3,1.00
+4,4,3.00,4,3,5.00
+4,1,3.00,4,2,3.00
+4,1,3.00,4,5,2.00
+4,1,3.00,4,2,2.00
+4,1,3.00,4,4,4.00
+4,1,3.00,4,1,1.00
+4,1,3.00,4,3,2.00
+4,1,3.00,4,5,1.00
+4,1,3.00,4,1,2.00
+4,1,3.00,4,3,1.00
+4,1,3.00,4,3,5.00
+3,2,3.00,3,4,4.00
+3,2,3.00,3,5,4.00
+3,2,3.00,3,5,4.00
+3,2,3.00,3,4,4.00
+3,2,3.00,3,2,5.00
+3,2,3.00,3,2,1.00
+3,2,3.00,3,5,4.00
+3,2,3.00,3,5,1.00
+3,2,3.00,3,3,5.00
+3,2,3.00,3,3,5.00
+3,2,3.00,3,1,2.00
+3,2,3.00,3,3,2.00
+3,2,3.00,3,5,3.00
+3,2,3.00,3,1,5.00
+4,3,2.00,4,2,3.00
+4,3,2.00,4,5,2.00
+4,3,2.00,4,2,2.00
+4,3,2.00,4,4,4.00
+4,3,2.00,4,1,1.00
+4,3,2.00,4,3,2.00
+4,3,2.00,4,5,1.00
+4,3,2.00,4,1,2.00
+4,3,2.00,4,3,1.00
+4,3,2.00,4,3,5.00
+2,5,2.00,2,3,1.00
+2,5,2.00,2,5,4.00
+2,5,2.00,2,3,1.00
+2,5,2.00,2,3,4.00
+2,5,2.00,2,4,4.00
+2,5,2.00,2,5,3.00
+2,5,2.00,2,2,5.00
+2,5,2.00,2,4,4.00
+2,5,2.00,2,3,5.00
+2,5,2.00,2,5,1.00
+2,5,2.00,2,4,4.00
+1,2,1.00,1,2,5.00
+1,2,1.00,1,2,1.00
+1,2,1.00,1,5,3.00
+1,2,1.00,1,5,2.00
+1,2,1.00,1,4,1.00
+3,3,2.00,3,4,4.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,4,4.00
+3,3,2.00,3,2,5.00
+3,3,2.00,3,2,1.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,5,1.00
+3,3,2.00,3,3,5.00
+3,3,2.00,3,3,5.00
+3,3,2.00,3,1,2.00
+3,3,2.00,3,3,2.00
+3,3,2.00,3,5,3.00
+3,3,2.00,3,1,5.00
+1,3,1.00,1,2,5.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+1,3,1.00,1,4,1.00
+4,2,3.00,4,2,3.00
+4,2,3.00,4,5,2.00
+4,2,3.00,4,2,2.00
+4,2,3.00,4,4,4.00
+4,2,3.00,4,1,1.00
+4,2,3.00,4,3,2.00
+4,2,3.00,4,5,1.00
+4,2,3.00,4,1,2.00
+4,2,3.00,4,3,1.00
+4,2,3.00,4,3,5.00
+5,2,3.00,5,3,1.00
+5,2,3.00,5,4,3.00
+5,2,3.00,5,5,3.00
+5,2,3.00,5,4,4.00
+5,2,3.00,5,1,1.00
+5,2,3.00,5,4,5.00
+5,2,3.00,5,3,1.00
+5,2,3.00,5,3,3.00
+5,2,3.00,5,5,3.00
+5,2,3.00,5,5,5.00
+5,2,3.00,5,1,4.00
+5,2,3.00,5,1,1.00
+5,2,3.00,5,2,4.00
+5,2,3.00,5,1,2.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,4,3.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,4,4.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,4,5.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,3,3.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,5,5.00
+5,3,3.00,5,1,4.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,2,4.00
+5,3,3.00,5,1,2.00
+1,4,3.00,1,2,5.00
+1,4,3.00,1,2,1.00
+1,4,3.00,1,5,3.00
+1,4,3.00,1,5,2.00
+1,4,3.00,1,4,1.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,5,4.00
+2,2,1.00,2,3,1.00
+2,2,1.00,2,3,4.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,5,3.00
+2,2,1.00,2,2,5.00
+2,2,1.00,2,4,4.00
+2,2,1.00,2,3,5.00
+2,2,1.00,2,5,1.00
+2,2,1.00,2,4,4.00
+1,3,2.00,1,2,5.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+1,3,2.00,1,4,1.00
+4,4,3.00,4,2,3.00
+4,4,3.00,4,5,2.00
+4,4,3.00,4,2,2.00
+4,4,3.00,4,4,4.00
+4,4,3.00,4,1,1.00
+4,4,3.00,4,3,2.00
+4,4,3.00,4,5,1.00
+4,4,3.00,4,1,2.00
+4,4,3.00,4,3,1.00
+4,4,3.00,4,3,5.00
+4,3,1.00,4,2,3.00
+4,3,1.00,4,5,2.00
+4,3,1.00,4,2,2.00
+4,3,1.00,4,4,4.00
+4,3,1.00,4,1,1.00
+4,3,1.00,4,3,2.00
+4,3,1.00,4,5,1.00
+4,3,1.00,4,1,2.00
+4,3,1.00,4,3,1.00
+4,3,1.00,4,3,5.00
+1,2,1.00,1,2,5.00
+1,2,1.00,1,2,1.00
+1,2,1.00,1,5,3.00
+1,2,1.00,1,5,2.00
+1,2,1.00,1,4,1.00
+3,3,3.00,3,4,4.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,4,4.00
+3,3,3.00,3,2,5.00
+3,3,3.00,3,2,1.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,5,1.00
+3,3,3.00,3,3,5.00
+3,3,3.00,3,3,5.00
+3,3,3.00,3,1,2.00
+3,3,3.00,3,3,2.00
+3,3,3.00,3,5,3.00
+3,3,3.00,3,1,5.00
+@SELECT TBL7.a, TBL7.b, TBL7.c, TBL8.a, TBL8.b, TBL8.c FROM TBL7, TBL8 WHERE TBL7.a = TBL8.a AND TBL7.c < 3.1;
+a,b,c,a,b,c
+5,3,2.00,5,3,1.00
+5,3,2.00,5,4,3.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,3,1.00
+5,3,2.00,5,3,3.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,1,2.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+1,3,1.00,1,4,1.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+1,3,2.00,1,4,1.00
+3,3,5.00,3,2,1.00
+3,3,5.00,3,5,1.00
+3,3,5.00,3,1,2.00
+3,3,5.00,3,3,2.00
+3,3,5.00,3,5,3.00
+4,3,2.00,4,2,3.00
+4,3,2.00,4,5,2.00
+4,3,2.00,4,2,2.00
+4,3,2.00,4,1,1.00
+4,3,2.00,4,3,2.00
+4,3,2.00,4,5,1.00
+4,3,2.00,4,1,2.00
+4,3,2.00,4,3,1.00
+3,3,2.00,3,2,1.00
+3,3,2.00,3,5,1.00
+3,3,2.00,3,1,2.00
+3,3,2.00,3,3,2.00
+3,3,2.00,3,5,3.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+1,3,1.00,1,4,1.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,4,3.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,3,3.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,1,2.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+1,3,2.00,1,4,1.00
+4,3,1.00,4,2,3.00
+4,3,1.00,4,5,2.00
+4,3,1.00,4,2,2.00
+4,3,1.00,4,1,1.00
+4,3,1.00,4,3,2.00
+4,3,1.00,4,5,1.00
+4,3,1.00,4,1,2.00
+4,3,1.00,4,3,1.00
+2,3,5.00,2,3,1.00
+2,3,5.00,2,3,1.00
+2,3,5.00,2,5,3.00
+2,3,5.00,2,5,1.00
+3,3,3.00,3,2,1.00
+3,3,3.00,3,5,1.00
+3,3,3.00,3,1,2.00
+3,3,3.00,3,3,2.00
+3,3,3.00,3,5,3.00
+@SELECT TBL7.a, TBL7.b, TBL7.c, TBL8.a, TBL8.b, TBL8.c FROM TBL7, TBL8 WHERE TBL7.a = TBL8.a AND TBL8.c < 3.1 AND TBL7.b = '3';
+a,b,c,a,b,c
+5,3,2.00,5,3,1.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,3,1.00
+5,3,2.00,5,3,3.00
+5,3,2.00,5,5,3.00
+5,3,2.00,5,5,5.00
+5,3,2.00,5,1,4.00
+5,3,2.00,5,1,1.00
+5,3,2.00,5,2,4.00
+5,3,2.00,5,1,2.00
+1,3,1.00,1,2,5.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+1,3,2.00,1,2,5.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+4,3,2.00,4,2,3.00
+4,3,2.00,4,5,2.00
+4,3,2.00,4,2,2.00
+4,3,2.00,4,1,1.00
+4,3,2.00,4,3,2.00
+4,3,2.00,4,5,1.00
+4,3,2.00,4,1,2.00
+4,3,2.00,4,3,1.00
+4,3,2.00,4,3,5.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,2,5.00
+3,3,2.00,3,2,1.00
+3,3,2.00,3,5,4.00
+3,3,2.00,3,5,1.00
+3,3,2.00,3,3,5.00
+3,3,2.00,3,3,5.00
+3,3,2.00,3,1,2.00
+3,3,2.00,3,3,2.00
+3,3,2.00,3,5,3.00
+3,3,2.00,3,1,5.00
+1,3,1.00,1,2,5.00
+1,3,1.00,1,2,1.00
+1,3,1.00,1,5,3.00
+1,3,1.00,1,5,2.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,3,1.00
+5,3,3.00,5,3,3.00
+5,3,3.00,5,5,3.00
+5,3,3.00,5,5,5.00
+5,3,3.00,5,1,4.00
+5,3,3.00,5,1,1.00
+5,3,3.00,5,2,4.00
+5,3,3.00,5,1,2.00
+1,3,2.00,1,2,5.00
+1,3,2.00,1,2,1.00
+1,3,2.00,1,5,3.00
+1,3,2.00,1,5,2.00
+4,3,1.00,4,2,3.00
+4,3,1.00,4,5,2.00
+4,3,1.00,4,2,2.00
+4,3,1.00,4,1,1.00
+4,3,1.00,4,3,2.00
+4,3,1.00,4,5,1.00
+4,3,1.00,4,1,2.00
+4,3,1.00,4,3,1.00
+4,3,1.00,4,3,5.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,2,5.00
+3,3,3.00,3,2,1.00
+3,3,3.00,3,5,4.00
+3,3,3.00,3,5,1.00
+3,3,3.00,3,3,5.00
+3,3,3.00,3,3,5.00
+3,3,3.00,3,1,2.00
+3,3,3.00,3,3,2.00
+3,3,3.00,3,5,3.00
+3,3,3.00,3,1,5.00
+@SELECT TBL7.a, TBL7.b, TBL7.c, TBL8.a, TBL8.b, TBL8.c FROM TBL7, TBL8 WHERE TBL7.a = TBL8.a AND TBL7.c < 4.1 AND TBL7.b = '3' AND TBL8.b <> '4';
+[1m[32m[INFO] Case join passed[0m
+[INFO] Case join-data is running
+@USE DATASET;
+N_NAME,N_NATIONKEY
+VIETNAM,21
+@SELECT NATION.N_NAME, NATION.N_NATIONKEY FROM NATION, REGION WHERE NATION.N_REGIONKEY = REGION.R_REGIONKEY AND NATION.N_NATIONKEY > 20 AND REGION.R_NAME = 'ASIA';
+S_SUPPKEY,S_NAME,S_NATIONKEY,N_NAME
+49,Supplier#000000049,24,UNITED STATES
+234,Supplier#000000234,24,UNITED STATES
+389,Supplier#000000389,24,UNITED STATES
+438,Supplier#000000438,24,UNITED STATES
+1343,Supplier#000001343,24,UNITED STATES
+1891,Supplier#000001891,24,UNITED STATES
+1985,Supplier#000001985,24,UNITED STATES
+2103,Supplier#000002103,24,UNITED STATES
+2148,Supplier#000002148,24,UNITED STATES
+2657,Supplier#000002657,24,UNITED STATES
+2872,Supplier#000002872,24,UNITED STATES
+@SELECT SUPPLIER.S_SUPPKEY, SUPPLIER.S_NAME, SUPPLIER.S_NATIONKEY, NATION.N_NAME FROM SUPPLIER, NATION WHERE SUPPLIER.S_NATIONKEY = NATION.N_NATIONKEY AND NATION.N_NATIONKEY = 24 AND SUPPLIER.S_ACCTBAL > 8888.8;
+C_NAME,S_NAME
+Customer#000007011,Supplier#000000022
+Customer#000007011,Supplier#000000343
+Customer#000034350,Supplier#000000157
+Customer#000034350,Supplier#000002444
+Customer#000039861,Supplier#000001458
+Customer#000042328,Supplier#000001478
+Customer#000042328,Supplier#000001764
+Customer#000042328,Supplier#000001980
+Customer#000042328,Supplier#000002835
+Customer#000042328,Supplier#000002908
+@SELECT CUSTOMER.C_NAME, SUPPLIER.S_NAME FROM CUSTOMER, SUPPLIER WHERE CUSTOMER.C_NATIONKEY = SUPPLIER.S_NATIONKEY AND CUSTOMER.C_ACCTBAL < -999.0 AND SUPPLIER.S_ACCTBAL < -888.0;
+[1m[32m[INFO] Case join-data passed[0m
+[INFO] Case pk is running
+@USE DB2;
+@CREATE TABLE T1 (ID INT, NAME VARCHAR(16), PRIMARY KEY (ID));
+rows
+3
+@INSERT INTO T1 VALUES (1, '1'), (2, '2'), (3, '3');
+rows
+3
+@INSERT INTO T1 VALUES (4, '1'), (5, '2'), (6, '3');
+!ERROR
+duplicate
+@INSERT INTO T1 VALUES (4, '8');
+rows
+2
+@INSERT INTO T1 VALUES (7, '7'), (9, '9');
+ID,NAME
+1,1
+2,2
+3,3
+4,1
+5,2
+6,3
+7,7
+9,9
+@SELECT * FROM T1 WHERE T1.ID > 0;
+[1m[32m[INFO] Case pk passed[0m
+[INFO] Case pk-schema is running
+@USE DB2;
+@CREATE TABLE T0 (ID INT NOT NULL, ID2 INT NOT NULL, NAME VARCHAR(16));
+rows
+4
+@INSERT INTO T0 VALUES (1, 1, '1'), (2, 2, '2'), (3, 3, '3'), (1, 4, '4');
+ID,ID2,NAME
+1,1,1
+2,2,2
+3,3,3
+1,4,4
+@SELECT * FROM T0 WHERE T0.ID > 0 ;
+!ERROR
+duplicate
+@ALTER TABLE T0 ADD CONSTRAINT PK PRIMARY KEY (ID);
+rows
+1
+@DELETE FROM T0 WHERE T0.NAME = '4';
+@ALTER TABLE T0 ADD CONSTRAINT PK PRIMARY KEY (ID);
+Field,Type,Null,Default
+ID,INT,NO,NULL
+ID2,INT,NO,NULL
+NAME,VARCHAR(16),YES,NULL
+
+PRIMARY KEY (ID);
+@DESC T0;
+!ERROR
+primary
+@ALTER TABLE T0 ADD CONSTRAINT PK PRIMARY KEY (ID, ID2);
+Field,Type,Null,Default
+ID,INT,NO,NULL
+ID2,INT,NO,NULL
+NAME,VARCHAR(16),YES,NULL
+
+PRIMARY KEY (ID);
+@DESC T0;
+!ERROR
+duplicate
+@INSERT INTO T0 VALUES (1, 4, '4');
+@ALTER TABLE T0 DROP PRIMARY KEY;
+rows
+1
+@INSERT INTO T0 VALUES (1, 4, '4');
+ID,ID2,NAME
+1,1,1
+2,2,2
+3,3,3
+1,4,4
+@SELECT * FROM T0 WHERE T0.ID > 0 ;
+Field,Type,Null,Default
+ID,INT,NO,NULL
+ID2,INT,NO,NULL
+NAME,VARCHAR(16),YES,NULL
+@DESC T0;
+!ERROR
+primary
+@ALTER TABLE T0 DROP PRIMARY KEY;
+[1m[32m[INFO] Case pk-schema passed[0m
+[INFO] Case comb-pk-schema is running
+@USE DB2;
+@ALTER TABLE T0 ADD CONSTRAINT PK PRIMARY KEY (ID, ID2);
+Field,Type,Null,Default
+ID,INT,NO,NULL
+ID2,INT,NO,NULL
+NAME,VARCHAR(16),YES,NULL
+
+PRIMARY KEY (ID, ID2);
+@DESC T0;
+!ERROR
+duplicate
+@INSERT INTO T0 VALUES (1, 4, '5');
+ID,ID2,NAME
+1,1,1
+2,2,2
+3,3,3
+1,4,4
+@SELECT * FROM T0;
+@ALTER TABLE T0 DROP PRIMARY KEY;
+Field,Type,Null,Default
+ID,INT,NO,NULL
+ID2,INT,NO,NULL
+NAME,VARCHAR(16),YES,NULL
+@DESC T0;
+[1m[32m[INFO] Case comb-pk-schema passed[0m
+[INFO] Case comb-fk-schema is running
+@USE DB2;
+@CREATE TABLE T01 (ID INT, T0_ID INT, T0_ID2 INT, VALUE FLOAT);
+rows
+4
+@INSERT INTO T01 VALUES (1, 1, 1, 1.0), (2, 2, 2, 2.0), (3, 3, 3, 3.0), (4, 4, 4, 4.0);
+@ALTER TABLE T0 ADD PRIMARY KEY (ID, ID2);
+!ERROR
+foreign
+@ALTER TABLE T01 ADD CONSTRAINT FK_T0_ID_T0_ID2 FOREIGN KEY (T0_ID, T0_ID2) REFERENCES T0(ID, ID2);
+rows
+1
+@DELETE FROM T01 WHERE VALUE > 3.5;
+@ALTER TABLE T01 ADD CONSTRAINT FK_T0_ID_T0_ID2 FOREIGN KEY (T0_ID, T0_ID2) REFERENCES T0(ID, ID2);
+Field,Type,Null,Default
+ID,INT,YES,NULL
+T0_ID,INT,YES,NULL
+T0_ID2,INT,YES,NULL
+VALUE,FLOAT,YES,NULL
+
+FOREIGN KEY (T0_ID, T0_ID2) REFERENCES T0(ID, ID2);
+@DESC T01;
+rows
+2
+@INSERT INTO T01 VALUES (5, 1, 1, 2.2), (6, 2, 2, 3.3);
+!ERROR
+foreign
+@INSERT INTO T01 VALUES (7, 1, 2, 2.2);
+rows
+1
+@UPDATE T01 SET T0_ID2 = 4 WHERE ID = 1;
+!ERROR
+foreign
+@DELETE FROM T0 WHERE ID2 = 4;
+rows
+1
+@UPDATE T01 SET T0_ID2 = 2, T0_ID = 2 WHERE T0_ID2 = 4;
+rows
+1
+@DELETE FROM T0 WHERE ID2 = 4;
+!ERROR
+foreign
+@DELETE FROM T0 WHERE ID = 2;
+@ALTER TABLE T01 DROP FOREIGN KEY FK_T0_ID_T0_ID2;
+Field,Type,Null,Default
+ID,INT,YES,NULL
+T0_ID,INT,YES,NULL
+T0_ID2,INT,YES,NULL
+VALUE,FLOAT,YES,NULL
+@DESC T01;
+rows
+1
+@INSERT INTO T01 VALUES (7, 1, 2, 2.2);
+rows
+1
+@DELETE FROM T0 WHERE ID = 2;
+ID,T0_ID,T0_ID2,VALUE
+1,2,2,1.00
+2,2,2,2.00
+3,3,3,3.00
+5,1,1,2.20
+6,2,2,3.30
+7,1,2,2.20
+@SELECT * FROM T01;
+[1m[32m[INFO] Case comb-fk-schema passed[0m
+[INFO] Case fk-schema is running
+@USE DB2;
+@CREATE TABLE TX (ID INT, VALUE INT, PRIMARY KEY (ID));
+@CREATE TABLE TY (ID INT, ID_TX INT, VALUE INT);
+rows
+4
+@INSERT INTO TX VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+rows
+3
+@INSERT INTO TY VALUES (1, 1, 1), (2, 2, 2), (3, 6, 9);
+!ERROR
+foreign
+@ALTER TABLE TY ADD CONSTRAINT FK_ID_TX FOREIGN KEY (ID_TX) REFERENCES TX(ID);
+rows
+1
+@DELETE FROM TY WHERE VALUE > 5;
+@ALTER TABLE TY ADD CONSTRAINT FK_ID_TX FOREIGN KEY (ID_TX) REFERENCES TX(ID);
+Field,Type,Null,Default
+ID,INT,YES,NULL
+ID_TX,INT,YES,NULL
+VALUE,INT,YES,NULL
+
+FOREIGN KEY (ID_TX) REFERENCES TX(ID);
+@DESC TY;
+!ERROR
+foreign
+@INSERT INTO TY VALUES (4, 8, 12);
+!ERROR
+foreign
+@DELETE FROM TX WHERE ID = 1;
+@ALTER TABLE TY DROP FOREIGN KEY FK_ID_TX;
+rows
+1
+@DELETE FROM TX WHERE ID = 1;
+rows
+1
+@INSERT INTO TY VALUES (4, 8, 12);
+ID,VALUE
+2,2
+3,3
+4,4
+@SELECT * FROM TX;
+ID,ID_TX,VALUE
+1,1,1
+2,2,2
+4,8,12
+@SELECT * FROM TY;
+Field,Type,Null,Default
+ID,INT,YES,NULL
+ID_TX,INT,YES,NULL
+VALUE,INT,YES,NULL
+@DESC TY;
+[1m[32m[INFO] Case fk-schema passed[0m
+[INFO] Case fk is running
+@USE DB2;
+@CREATE TABLE T3 (ID INT, T1_ID INT, NAME VARCHAR(16), PRIMARY KEY (ID), FOREIGN KEY (T1_ID) REFERENCES T1(ID));
+@CREATE TABLE T4 (ID INT, T3_ID INT, NAME VARCHAR(16), FOREIGN KEY (T3_ID) REFERENCES T3(ID));
+rows
+3
+@INSERT INTO T1 VALUES (100, '100'), (101, '101'), (102, '102');
+rows
+3
+@INSERT INTO T3 VALUES (10, 100, '10_100'), (11, 101, '11_101'), (12, 102, '12_102');
+rows
+2
+@INSERT INTO T4 VALUES (0, 10, '0_10_100'), (1, 11, '1_11_101');
+rows
+1
+@UPDATE T4 SET T3_ID = 12, NAME = '1_12_102' WHERE T4.ID = 1;
+rows
+1
+@INSERT INTO T4 VALUES (2, 12, '2_12_102');
+!ERROR
+foreign
+@UPDATE T4 SET T3_ID = 13, NAME = '1_13_10?' WHERE T4.ID = 1;
+!ERROR
+foreign
+@INSERT INTO T4 VALUES (3, 13, '2_13_10?');
+ID,T3_ID,NAME
+0,10,0_10_100
+1,12,1_12_102
+2,12,2_12_102
+@SELECT * FROM T4;
+[1m[32m[INFO] Case fk passed[0m
+[INFO] Case comb-pk is running
+@USE DB2;
+@CREATE TABLE T2 (ID1 INT, ID2 INT, NAME VARCHAR(16), PRIMARY KEY (ID1, ID2));
+rows
+3
+@INSERT INTO T2 VALUES (1, 1, '1'), (1, 2, '2'), (1, 3, '3');
+rows
+3
+@INSERT INTO T2 VALUES (2, 1, '1'), (2, 2, '2'), (2, 3, '3');
+!ERROR
+duplicate
+@INSERT INTO T2 VALUES (1, 1, '7');
+ID1,ID2,NAME
+1,1,1
+1,2,2
+1,3,3
+2,1,1
+2,2,2
+2,3,3
+@SELECT * FROM T2;
+rows
+1
+@INSERT INTO T2 VALUES (3, 1, '7');
+ID1,ID2,NAME
+1,1,1
+1,2,2
+1,3,3
+2,1,1
+2,2,2
+2,3,3
+3,1,7
+@SELECT * FROM T2;
+[1m[32m[INFO] Case comb-pk passed[0m
+[INFO] Case comb-fk is running
+@USE DB2;
+@CREATE TABLE T5 (ID INT, T2_ID1 INT, T2_ID2 INT, NAME VARCHAR(16), FOREIGN KEY (T2_ID1, T2_ID2) REFERENCES T2(ID1, ID2));
+rows
+4
+@INSERT INTO T2 VALUES (10, 10, '10_10'), (10, 11, '10_11'), (11, 10, '11_10'), (11, 11, '11_11');
+rows
+4
+@INSERT INTO T5 VALUES (1, 10, 10, '1_10_10'), (2, 10, 10, '2_10_10'), (3, 10, 11, '3_10_11'), (4, 11, 10, '4_11_10');
+!ERROR
+foreign
+@UPDATE T2 SET ID2 = 12 WHERE T2.ID1 = 10 AND T2.ID2 = 10;
+rows
+1
+@UPDATE T2 SET ID2 = 12 WHERE T2.ID1 = 11 AND T2.ID2 = 11;
+!ERROR
+foreign
+@DELETE FROM T2 WHERE T2.ID2 = 11;
+rows
+1
+@DELETE FROM T2 WHERE T2.ID2 = 12;
+[1m[32m[INFO] Case comb-fk passed[0m
+[INFO] Case optional is running
+[1m[32m[INFO] Case optional passed[0m
+[1m[97m[INFO] User program exited normally[0m
+[INFO] Case query-c is running
+[INFO] User program starts
+@USE DB;
+rows
+20
+@INSERT INTO TBL3 VALUES (1508294445, '1508294445', 1508294445.0), (879794943, '879794943', 879794943.0), (1420012372, '1420012372', 1420012372.0), (1255763705, '1255763705', 1255763705.0), (1562105537, '1562105537', 1562105537.0), (1543490928, '1543490928', 1543490928.0), (1345654367, '1345654367', 1345654367.0), (1464340657, '1464340657', 1464340657.0), (867734773, '867734773', 867734773.0), (1, '1', 1.0), (775804339, '775804339', 775804339.0), (1137067603, '1137067603', 1137067603.0), (826534873, '826534873', 826534873.0), (682960019, '682960019', 682960019.0), (730732674, '730732674', 730732674.0), (512077328, '512077328', 512077328.0), (1350525586, '1350525586', 1350525586.0), (1375988121, '1375988121', 1375988121.0), (1329346290, '1329346290', 1329346290.0), (1792603330, '1792603330', 1792603330.0);
+rows
+1
+@UPDATE TBL3 SET a = 1 WHERE a = 1508294445;
+rows
+1
+@UPDATE TBL3 SET a = 1, b = '1' WHERE b = '1792603330';
+rows
+1
+@UPDATE TBL3 SET a = 1, b = '1508294445', c = 123.456 WHERE a = 879794943 AND b = '879794943';
+a,b,c
+1,1508294445,1508294445.00
+1,1508294445,123.46
+1420012372,1420012372,1420012372.00
+1255763705,1255763705,1255763705.00
+1562105537,1562105537,1562105537.00
+1543490928,1543490928,1543490928.00
+1345654367,1345654367,1345654367.00
+1464340657,1464340657,1464340657.00
+867734773,867734773,867734773.00
+1,1,1.00
+775804339,775804339,775804339.00
+1137067603,1137067603,1137067603.00
+826534873,826534873,826534873.00
+682960019,682960019,682960019.00
+730732674,730732674,730732674.00
+512077328,512077328,512077328.00
+1350525586,1350525586,1350525586.00
+1375988121,1375988121,1375988121.00
+1329346290,1329346290,1329346290.00
+1,1,1792603330.00
+@SELECT * FROM TBL3;
+rows
+2
+@UPDATE TBL3 SET c = 3.2 WHERE a = 1 AND b = '1508294445';
+a,b,c
+1,1508294445,3.20
+1,1508294445,3.20
+1420012372,1420012372,1420012372.00
+1255763705,1255763705,1255763705.00
+1562105537,1562105537,1562105537.00
+1543490928,1543490928,1543490928.00
+1345654367,1345654367,1345654367.00
+1464340657,1464340657,1464340657.00
+867734773,867734773,867734773.00
+1,1,1.00
+775804339,775804339,775804339.00
+1137067603,1137067603,1137067603.00
+826534873,826534873,826534873.00
+682960019,682960019,682960019.00
+730732674,730732674,730732674.00
+512077328,512077328,512077328.00
+1350525586,1350525586,1350525586.00
+1375988121,1375988121,1375988121.00
+1329346290,1329346290,1329346290.00
+1,1,1792603330.00
+@SELECT * FROM TBL3;
+rows
+4
+@UPDATE TBL3 SET b = '666' WHERE a = 1;
+a,b,c
+1,666,3.20
+1,666,3.20
+1420012372,1420012372,1420012372.00
+1255763705,1255763705,1255763705.00
+1562105537,1562105537,1562105537.00
+1543490928,1543490928,1543490928.00
+1345654367,1345654367,1345654367.00
+1464340657,1464340657,1464340657.00
+867734773,867734773,867734773.00
+1,666,1.00
+775804339,775804339,775804339.00
+1137067603,1137067603,1137067603.00
+826534873,826534873,826534873.00
+682960019,682960019,682960019.00
+730732674,730732674,730732674.00
+512077328,512077328,512077328.00
+1350525586,1350525586,1350525586.00
+1375988121,1375988121,1375988121.00
+1329346290,1329346290,1329346290.00
+1,666,1792603330.00
+@SELECT * FROM TBL3;
+[1m[32m[INFO] Case query-c passed[0m
+[INFO] Case query-d is running
+@USE DB;
+rows
+3
+@INSERT INTO TBL4 VALUES (1, '3', 1.0), (5, '5', 3.0), (1, '1', 4.0);
+rows
+6
+@INSERT INTO TBL4 VALUES (2, '4', 4.0), (4, '1', 5.0), (1, '2', 2.0), (2, '4', 2.0), (5, '3', 5.0), (1, '5', 5.0);
+rows
+7
+@INSERT INTO TBL4 VALUES (5, '1', 3.0), (1, '4', 3.0), (2, '5', 2.0), (3, '1', 4.0), (2, '5', 2.0), (3, '2', 5.0), (2, '3', 5.0);
+rows
+2
+@INSERT INTO TBL4 VALUES (5, '1', 5.0), (1, '3', 4.0);
+a,b,c
+1,3,1.00
+5,5,3.00
+1,1,4.00
+2,4,4.00
+4,1,5.00
+1,2,2.00
+2,4,2.00
+5,3,5.00
+1,5,5.00
+5,1,3.00
+1,4,3.00
+2,5,2.00
+3,1,4.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+5,1,5.00
+1,3,4.00
+@SELECT * FROM TBL4;
+rows
+6
+@DELETE FROM TBL4 WHERE a = 1;
+a,b,c
+5,5,3.00
+2,4,4.00
+4,1,5.00
+2,4,2.00
+5,3,5.00
+5,1,3.00
+2,5,2.00
+3,1,4.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+5,1,5.00
+@SELECT * FROM TBL4;
+rows
+7
+@INSERT INTO TBL4 VALUES (1, '3', 1.0), (3, '3', 4.0), (5, '1', 1.0), (3, '3', 5.0), (1, '5', 4.0), (1, '3', 4.0), (1, '5', 2.0);
+rows
+6
+@INSERT INTO TBL4 VALUES (1, '5', 2.0), (5, '2', 4.0), (1, '4', 4.0), (5, '4', 1.0), (4, '1', 5.0), (5, '5', 1.0);
+a,b,c
+1,3,4.00
+5,5,3.00
+1,5,4.00
+2,4,4.00
+4,1,5.00
+3,3,5.00
+2,4,2.00
+5,3,5.00
+5,1,1.00
+5,1,3.00
+3,3,4.00
+2,5,2.00
+3,1,4.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+5,1,5.00
+1,3,1.00
+1,5,2.00
+1,5,2.00
+5,2,4.00
+1,4,4.00
+5,4,1.00
+4,1,5.00
+5,5,1.00
+@SELECT * FROM TBL4;
+rows
+2
+@DELETE FROM TBL4 WHERE a = 3 AND b = '3';
+a,b,c
+1,3,4.00
+5,5,3.00
+1,5,4.00
+2,4,4.00
+4,1,5.00
+2,4,2.00
+5,3,5.00
+5,1,1.00
+5,1,3.00
+2,5,2.00
+3,1,4.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+5,1,5.00
+1,3,1.00
+1,5,2.00
+1,5,2.00
+5,2,4.00
+1,4,4.00
+5,4,1.00
+4,1,5.00
+5,5,1.00
+@SELECT * FROM TBL4;
+rows
+6
+@INSERT INTO TBL4 VALUES (1, '5', 4.0), (2, '4', 1.0), (5, '5', 2.0), (5, '1', 4.0), (4, '3', 4.0), (2, '2', 4.0);
+rows
+2
+@INSERT INTO TBL4 VALUES (3, '3', 5.0), (2, '4', 5.0);
+a,b,c
+1,3,4.00
+5,5,3.00
+1,5,4.00
+2,4,4.00
+4,1,5.00
+2,4,1.00
+2,4,2.00
+5,3,5.00
+5,1,1.00
+5,1,3.00
+1,5,4.00
+2,5,2.00
+3,1,4.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+5,1,5.00
+1,3,1.00
+1,5,2.00
+1,5,2.00
+5,2,4.00
+1,4,4.00
+5,4,1.00
+4,1,5.00
+5,5,1.00
+5,5,2.00
+5,1,4.00
+4,3,4.00
+2,2,4.00
+3,3,5.00
+2,4,5.00
+@SELECT * FROM TBL4;
+rows
+3
+@DELETE FROM TBL4 WHERE b = '4' AND c <= 2.0;
+a,b,c
+1,3,4.00
+5,5,3.00
+1,5,4.00
+2,4,4.00
+4,1,5.00
+5,3,5.00
+5,1,1.00
+5,1,3.00
+1,5,4.00
+2,5,2.00
+3,1,4.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+5,1,5.00
+1,3,1.00
+1,5,2.00
+1,5,2.00
+5,2,4.00
+1,4,4.00
+4,1,5.00
+5,5,1.00
+5,5,2.00
+5,1,4.00
+4,3,4.00
+2,2,4.00
+3,3,5.00
+2,4,5.00
+@SELECT * FROM TBL4;
+rows
+3
+@INSERT INTO TBL4 VALUES (2, '5', 2.0), (2, '2', 1.0), (1, '3', 2.0);
+rows
+4
+@INSERT INTO TBL4 VALUES (2, '3', 5.0), (3, '4', 1.0), (3, '3', 4.0), (4, '4', 1.0);
+a,b,c
+1,3,4.00
+5,5,3.00
+1,5,4.00
+2,4,4.00
+4,1,5.00
+1,3,2.00
+2,2,1.00
+5,3,5.00
+5,1,1.00
+5,1,3.00
+1,5,4.00
+2,5,2.00
+3,1,4.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+5,1,5.00
+1,3,1.00
+1,5,2.00
+1,5,2.00
+5,2,4.00
+1,4,4.00
+2,5,2.00
+4,1,5.00
+5,5,1.00
+5,5,2.00
+5,1,4.00
+4,3,4.00
+2,2,4.00
+3,3,5.00
+2,4,5.00
+2,3,5.00
+3,4,1.00
+3,3,4.00
+4,4,1.00
+@SELECT * FROM TBL4;
+rows
+5
+@DELETE FROM TBL4 WHERE b < '2' AND c > 3.0;
+a,b,c
+1,3,4.00
+5,5,3.00
+1,5,4.00
+2,4,4.00
+1,3,2.00
+2,2,1.00
+5,3,5.00
+5,1,1.00
+5,1,3.00
+1,5,4.00
+2,5,2.00
+2,5,2.00
+3,2,5.00
+2,3,5.00
+1,3,1.00
+1,5,2.00
+1,5,2.00
+5,2,4.00
+1,4,4.00
+2,5,2.00
+5,5,1.00
+5,5,2.00
+4,3,4.00
+2,2,4.00
+3,3,5.00
+2,4,5.00
+2,3,5.00
+3,4,1.00
+3,3,4.00
+4,4,1.00
+@SELECT * FROM TBL4;
+[1m[32m[INFO] Case query-d passed[0m
+[1m[97m[INFO] User program exited normally[0m
+Passed cases: [1m[32mcomb-fk, comb-fk-schema, comb-pk, comb-pk-schema, data, fk, fk-schema, index-data, index-schema, join, join-data, optional, pk, pk-schema, query-a, query-b, query-c, query-d, query-data-a, query-data-b, system, table, table-data[0m
+Failed cases: [1m[31m[0m
+Skipped cases: [1m[33m[0m
+Disabled cases: [1m[30mdate, multi-join, multi-join-opt, null, query-aggregate, query-fuzzy, query-group, query-nest, query-order, unique[0m
+[1m[32mScores: 62 / 62, Time: 128.273s[0m
